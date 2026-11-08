@@ -140,7 +140,7 @@
   if(source&&destination)try{source.disconnect(destination)}catch(_){}
   mediaStream=null;destination=null;recording=null;
   if(video){video.pause();app?.onExportEnd()}
-  exporting=false;uiBusy(false);
+  exporting=false;abortResolver=null;uiBusy(false);
  }
  async function begin(){
   if(!app||exporting)return;
@@ -153,6 +153,8 @@
   if(!video.videoWidth||!Number.isFinite(video.duration)||video.duration<=0){fail('Video henüz hazır değil. Önce oynat, sonra yeniden dene.');return}
   if(video.duration>180){fail('iPad için bu deneysel sürüm en fazla 3 dakikalık video kaydeder.');return}
   resetOutput();setProgress(0);cancelled=false;exporting=true;uiBusy(true);frameCount=0;mediaLastTime=-1;
+  const cancelledPromise=new Promise((_,reject)=>{abortResolver=reject});
+  const originalMuted=video.muted;
   let resumePromise=Promise.resolve(),playPromise=Promise.resolve(),mime='',endListener=null,recordingError=null;
   const q=currentQuality();
   try{
@@ -244,7 +246,7 @@
    const startLimit=new Promise((_,reject)=>setTimeout(()=>reject(Error('Safari videoyu başlatmadı. Sayfa kayıt yapamıyor.')),8500));
    await Promise.race([unlock,startLimit,hardStop]);
    // Even if MediaRecorder never fires stop, the hard limit will exit this wait.
-   await Promise.race([stopped,hardStop]);
+   await Promise.race([stopped,hardStop,cancelledPromise]);
    if(cancelled)throw Error('Kayıt iptal edildi.');
    if(recordingError)throw recordingError;
    const total=chunks.reduce((sum,item)=>sum+item.size,0);
@@ -264,12 +266,14 @@
    else fail(String(error?.message||error));
   }finally{
    if(endListener)video.removeEventListener('ended',endListener);
+   video.muted=originalMuted;
    cleanup(video);
   }
  }
  function cancel(){
   if(!exporting)return;
-  cancelled=true;setStatus('Kayıt iptal ediliyor…');
+  cancelled=true;setStatus('Kayıt iptal edildi; düzenlemelerin korunuyor.');
+  if(abortResolver)abortResolver(Error('Kayıt kullanıcı tarafından iptal edildi.'));
   if(recording?.state==='recording')try{recording.stop()}catch(_){}
   // Safari sometimes fails to deliver onstop; the primary hard-stop timer still applies.
  }
