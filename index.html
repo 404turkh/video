@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
-  <script src="./local-transcriber.js?v=0.2.1" defer></script>
-  <script src="./app.js?v=0.2.1" defer></script>
+  <script src="./local-transcriber.js?v=0.3" defer></script>
+  <script src="./app.js?v=0.3" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +19,7 @@
       <a class="brand" href="#" aria-label="SubStudio ana sayfa">
         <span class="brand-mark">焱</span>
         <span class="brand-name">Sub<span>Studio</span></span>
-        <span class="version">BETA 0.2.1</span>
+        <span class="version">BETA 0.3</span>
       </a>
       <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
       <div class="top-actions">
@@ -103,11 +103,17 @@
             <p class="muted small-copy">API anahtarı veya Cloudflare Worker gerekmez. Çok dilli Whisper AI modeli ilk kullanımda internetten indirilir, videonun sesi cihazında işlenir. iPad'de ilk deneme için 10–30 saniyelik video önerilir; işlem yavaş olabilir.</p>
             <label for="localLanguage" class="field-label">Konuşma dili</label>
             <select id="localLanguage" class="control">
-              <option value="auto">Otomatik algıla</option>
-              <option value="turkish">Türkçe</option>
+              <option value="turkish" selected>Türkçe — Türkçe yaz</option>
+              <option value="auto">Dili otomatik algıla</option>
               <option value="arabic">Arapça</option>
               <option value="english">İngilizce</option>
             </select>
+            <label for="localModel" class="field-label">Konuşma tanıma modeli</label>
+            <select id="localModel" class="control">
+              <option value="accurate" selected>Daha doğru — Whisper Base (önerilen)</option>
+              <option value="fast">Hızlı / düşük bellek — Whisper Tiny</option>
+            </select>
+            <p class="muted small-copy">Türkçe konuşma Türkçe olarak yazılır; İngilizceye çeviri yapılmaz. İlk kullanımda seçilen AI modeli indirilir. Algılanan kelimeleri mutlaka kontrol et.</p>
             <p class="muted small-copy">Not: Bu deneysel sürüm iPad Safari'de bellek sınırlarına takılabilir. Kur'an tilaveti gibi içerikleri yayımlamadan önce mutlaka metni doğrula.</p>
             <div class="divider"></div>
             <div class="section-header"><h2>Altyazı dosyaları</h2></div>
@@ -167,7 +173,7 @@
             <div class="privacy-note">⌁ Videon ve sesi tarayıcıda kalır. AI modeli ilk seferde indirilir; harici API anahtarı gerekmez.</div>
           </div>
         </div>
-        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.2.1 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
+        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.3 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
       </section>
     </main>
   </div>
@@ -176,11 +182,13 @@
   <dialog id="exportDialog">
     <form method="dialog"><button class="dialog-close" aria-label="Kapat">×</button></form>
     <div class="dialog-icon">↗</div><h2>Videoyu dışa aktar</h2>
-    <p>Altyazılar görüntünün içine işlenecek; orijinal video sesi korunmaya çalışılacak. Tarayıcı içi kayıt gerçek zamanlıdır ve iPad Safari'de biçim desteği değişebilir.</p>
+    <p>Altyazılar görüntünün içine işlenecek; orijinal video sesi korunmaya çalışılacak. Kayıt bitince iPad'de Dosyalara Kaydet / Paylaş düğmesini kullanabilirsin. Safari biçim desteği cihazına göre değişebilir.</p>
     <div class="export-summary" id="exportSummary"></div>
     <button id="startExport" class="primary full" type="button">Kayıt işlemini başlat</button>
     <button id="stopExport" class="outline full" type="button" hidden>Kaydı durdur</button>
-    <div class="ai-status" id="exportStatus"></div>
+    <div class="ai-status" id="exportStatus" role="status" aria-live="polite"></div>
+    <button id="saveRenderedVideo" class="primary full" type="button" hidden>↓ Videoyu indir</button>
+    <button id="shareRenderedVideo" class="outline full" type="button" hidden>↗ Dosyalara Kaydet / Paylaş</button>
   </dialog>
 </body>
 </html>
