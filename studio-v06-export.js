@@ -297,10 +297,8 @@
    });
   });
   $('downloadSRT').addEventListener('click',()=>{
-   document.querySelector('button[data-page="captions"]')?.click();
-   setStatus('SRT indirmek için altyazı dosyası kullanılabilir.');
-   // Will be connected directly to the core SRT export below.
    app.downloadSRT?.();
+   setStatus('SRT altyazı indirmesi başlatıldı. Video çıkışından bağımsızdır.');
   });
  }
  function invalidate(){if(!exporting)resetOutput()}
