@@ -1,33 +1,33 @@
-# 焱 SubStudio — v0.3 Beta
+# 焱 SubStudio — v0.4 Beta
 
-Web tabanlı, cihazda çalışan AI altyazı ve video editörü.
+Tarayıcıda video yükleme, AI destekli altyazı oluşturma ve animasyonlu yazı tasarımı.
 
-## Türkçe altyazı (v0.3)
+## AI altyazıyı düzenleme
 
-- Varsayılan dil **Türkçe**. Whisper çalıştırılırken `language='turkish'` ve `task='transcribe'` zorlanır. İngilizceye çeviri modu kullanılmaz.
-- Önerilen model: `Xenova/whisper-base` (çok dilli). Eski `Xenova/whisper-tiny` seçeneği düşük bellek/hız için durur.
-- İlk kullanımda model indirilmeli. Base, Tiny'den daha çok kaynak kullanır; iPad Safari'de bellek sorunu olabilir.
-- Ses cihazda oynatılarak Web Audio ile kaydedilir. AI anahtarı gerekmez. Beta sınırları: 90 saniye / 120 MB.
-- Model çıktıları bazen yanlış kelime üretebilir; özellikle Kur'an tilaveti veya özel isimleri yayımlamadan önce kullanıcı kontrol etmeli.
+- **Stil** sekmesindeki font seçimi artık genişletildi: DM Sans, Poppins, Montserrat, Oswald, Anton, Bebas Neue, Space Grotesk, Impact, Georgia, Amiri, Noto Sans Arabic ve Arial.
+- AI altyazısı oluşturulduğunda Stil sekmesi otomatik açılır. Sağdaki **Oluşturulan altyazıyı tasarla** düğmesi de aynı bölüme götürür.
+- Kalınlık, harf aralığı, yazı rengi, kontur, gölge, konum, sağ/orta/sol hizalama, arka plan koyuluğu, animasyon tipi ve hızı ayarlanabilir.
+- Türkçe büyük harf seçeneği (`i → İ`), örnek altyazı önizlemesi, stili sıfırlama ve aynı cihazda tercihleri hatırlama eklendi.
+- Değişiklikler canlı önizlemede ve desteklenen tarayıcılarda video kayıt çiziminde kullanılır. Modelin ürettiği kelimeleri **Altyazılar** sekmesinden elle düzeltebilirsin.
 
-## Video dışa aktarma (v0.3)
+## Video çıkış kalitesi
 
-- Canvas + WebAudio + MediaRecorder ile **gerçek zamanlı** sesli video kaydı denenir.
-- Video oynatma isteği kullanıcının düğmeye bastığı anda yapılır; iOS Safari kullanıcı etkileşimi sınırlamalarını azaltır.
-- Mobil Safari'de işleme çözünürlüğü performans için sınırlandırılır.
-- Kayıt tamamlandığında **Videoyu indir** veya **Dosyalara Kaydet / Paylaş** düğmesine **ayrıca basılması gerekir**. iPad'de ikincisi Apple paylaşım sayfasını açabilir.
-- Bu özellik hâlâ **deneysel**. iPad'de gerçek cihaz testi yapılmadı; bazı Safari/codec kombinasyonlarında video üretilemeyebilir. Kesin MP4 dışa aktarma için gelecekte sunucuda FFmpeg kullanılması gerekir.
-- Sorun varsa editörde SRT'yi indirip mevcut videoyla farklı editörde birleştirebilirsin.
+Eski sürümde iPad çıkışı 1280 piksel uzun kenara, 2.5 Mbps bit hızına ve 25 FPS'e kısıtlanıyordu. Bu yüzden çözünürlük/ayrıntı kaybı belirgin olabiliyordu.
 
-## Yayınlama
+- **1080p · Yüksek kalite (önerilen)** — 1920 uzun kenar/1080 kısa kenar sınırı, hedef 30 FPS, 9 Mbps video bit hızı.
+- **720p · Akıcı / düşük yük** — 1280/720 sınırı, hedef 24 FPS, 4.2 Mbps.
+- **Kaynağa yakın · Deneysel** — 3840/2160'a kadar, hedef 30 FPS, 16 Mbps (iPad'de bellek/işlemci yükü yüksek).
+- Gerçek çıktı kalitesi ve kare hızı tarayıcının kaydedicisine bağlıdır; belirtilen bit hızları hedef değerdir, garanti değildir.
+- Kare çiziminde `requestVideoFrameCallback` (desteklenirse), diğer tarayıcılarda `requestAnimationFrame` kullanılır.
+- 7 saniyelik kare ilerleme durması algılanır; kare sayısı yetersizse donmuş videoyu başarılı kayıt diye sunmak yerine hata verilir.
+- Oluşan video iPad'de **Dosyalara Kaydet / Paylaş** veya **Videoyu indir** düğmesiyle kaydedilir.
 
-Statik dosyaları GitHub Pages veya Vercel'de yayınla. Build komutu gerekmiyor; ana dosya `index.html`.
+**Önemli:** Bu hâlâ tarayıcıda gerçek zamanlı kayıt yapan bir beta sürümdür. iPad Safari'de gerçek cihazla doğrulanmış değildir; video/ses donması tamamen ortadan kalkmış sayılmaz. Güvenilir ve kesintisiz yüksek kalite MP4 için ileride sunucuda FFmpeg tabanlı bir işleme kuyruğu planlanmalıdır. Bazı cihazlarda 720p seçmek daha iyi sonuç verir.
 
-## Dosyalar
+## Otomatik Türkçe transkripsiyon
 
-- `index.html`: Arayüz, dil/model ve dışa aktarma seçenekleri
-- `styles.css`: Tasarım
-- `app.js`: Video, altyazı, SRT, MediaRecorder/Share
-- `local-transcriber.js`: Yerel Whisper Base/Tiny konuşma tanıma
-- `vercel.json`: Vercel yapılandırması
-- `worker.js`, `wrangler.toml`: Önceki sürümden kalan isteğe bağlı API örneği; bu sürümün AI altyazısı bunları kullanmaz.
+Whisper Base (varsayılan) / Tiny (hafif) modeli tarayıcıda çalışır. `language=turkish` ve `task=transcribe` ile Türkçe konuşmayı Türkçe olarak yazdırma hedeflenir. Ses/video otomatik AI için sunucuya gönderilmez; model ilk kullanımda indirilir. Transkripsiyon hatalı olabilir.
+
+## Barındırma
+
+Vercel veya GitHub Pages'te statik olarak yayınlanabilir. Build komutu gerekmez. `worker.js` ve `wrangler.toml` önceki sürümden kalan, şu anki yerel AI akışında kullanılmayan isteğe bağlı örneklerdir.
