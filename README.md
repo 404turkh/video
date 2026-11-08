@@ -1,39 +1,33 @@
-# 焱 SubStudio — v0.2 Beta (API anahtarsız)
+# 焱 SubStudio — v0.3 Beta
 
-Türkçe arayüzlü, animasyonlu altyazı editörü. Web sitesi saf HTML/CSS/JS ile çalışır.
+Web tabanlı, cihazda çalışan AI altyazı ve video editörü.
 
-## Yerel AI otomatik altyazı
+## Türkçe altyazı (v0.3)
 
-- Cloudflare Worker, OpenAI API anahtarı veya abonelik **gerekmez**.
-- `local-transcriber.js` tarayıcıda çok dilli Whisper Tiny modelini çalıştırır (Transformers.js / WebAssembly).
-- Model ilk kullanımda Hugging Face üzerinden indirilir; ses ve video dosyaları transkripsiyon için dışarı yüklenmez.
-- Ses, videodan Web Audio ile gerçek zamanlı yakalandığı için işlem video süresi kadar sürebilir. Model indirme ve tanıma için ek süre gerekir.
-- Özellikle iPad/Safari için 10–30 saniyelik MP4/H.264 + AAC sesli videolarla dene. Beta sürümde **90 saniye** ve **120 MB** sınırları vardır.
-- İngilizce, Türkçe ve Arapça dil seçilebilir veya otomatik tanıma kullanılabilir.
-- Kelime zamanları üretilerek editörün normal altyazı satırlarına çevrilir; doğruluk garanti değildir.
-- Kur'an ayetleri ve mealler gibi hassas metinlerde çıktıyı kaynakla kontrol et; otomatik tanıma hatalı olabilir.
-- İPad'de bellek sınırları, tarayıcıların ses yakalama kısıtları, CDN veya model indirme engelleri nedeniyle başarısız olabilir; bu hali gerçek cihazda doğrulanmış değildir.
+- Varsayılan dil **Türkçe**. Whisper çalıştırılırken `language='turkish'` ve `task='transcribe'` zorlanır. İngilizceye çeviri modu kullanılmaz.
+- Önerilen model: `Xenova/whisper-base` (çok dilli). Eski `Xenova/whisper-tiny` seçeneği düşük bellek/hız için durur.
+- İlk kullanımda model indirilmeli. Base, Tiny'den daha çok kaynak kullanır; iPad Safari'de bellek sorunu olabilir.
+- Ses cihazda oynatılarak Web Audio ile kaydedilir. AI anahtarı gerekmez. Beta sınırları: 90 saniye / 120 MB.
+- Model çıktıları bazen yanlış kelime üretebilir; özellikle Kur'an tilaveti veya özel isimleri yayımlamadan önce kullanıcı kontrol etmeli.
 
-## Sunumu yayınlamak
+## Video dışa aktarma (v0.3)
 
-1. GitHub reposunu GitHub Pages veya Vercel'e bağla.
-2. Sadece statik dosyaları yayınla; derleme komutu yok.
-3. Videoyu yükle → **API olmadan altyazı oluştur** → dili seç → sonucu düzenle → SRT indir veya deneysel dışa aktar seçeneğini kullan.
+- Canvas + WebAudio + MediaRecorder ile **gerçek zamanlı** sesli video kaydı denenir.
+- Video oynatma isteği kullanıcının düğmeye bastığı anda yapılır; iOS Safari kullanıcı etkileşimi sınırlamalarını azaltır.
+- Mobil Safari'de işleme çözünürlüğü performans için sınırlandırılır.
+- Kayıt tamamlandığında **Videoyu indir** veya **Dosyalara Kaydet / Paylaş** düğmesine **ayrıca basılması gerekir**. iPad'de ikincisi Apple paylaşım sayfasını açabilir.
+- Bu özellik hâlâ **deneysel**. iPad'de gerçek cihaz testi yapılmadı; bazı Safari/codec kombinasyonlarında video üretilemeyebilir. Kesin MP4 dışa aktarma için gelecekte sunucuda FFmpeg kullanılması gerekir.
+- Sorun varsa editörde SRT'yi indirip mevcut videoyla farklı editörde birleştirebilirsin.
 
-## Desteklenen diğer araçlar
+## Yayınlama
 
-- MP4/WebM video yükleme, canlı önizleme, zamanları elle düzeltme.
-- Altı hazır yazı stili, animasyonlar, yazı tipleri, renk ve gölge.
-- SRT dosyası içe/dışa aktarma.
-- Deneysel tarayıcı tabanlı video kaydı; Safari'de sesli MP4 dışa aktarma garantili değil.
+Statik dosyaları GitHub Pages veya Vercel'de yayınla. Build komutu gerekmiyor; ana dosya `index.html`.
 
 ## Dosyalar
 
-- `index.html` — web arayüzü.
-- `styles.css` — tasarım.
-- `app.js` — editör ve yerel AI düğmesinin bağlantısı.
-- `local-transcriber.js` — cihazdaki Whisper transkripsiyonu.
-- `vercel.json` — Vercel statik barındırma.
-- `worker.js` ve `wrangler.toml` — v0.1'den kalan **isteğe bağlı eski API örneği**, mevcut arayüz bunları **kullanmıyor**.
-
-API anahtarı GitHub'a veya tarayıcıya eklenmemelidir.
+- `index.html`: Arayüz, dil/model ve dışa aktarma seçenekleri
+- `styles.css`: Tasarım
+- `app.js`: Video, altyazı, SRT, MediaRecorder/Share
+- `local-transcriber.js`: Yerel Whisper Base/Tiny konuşma tanıma
+- `vercel.json`: Vercel yapılandırması
+- `worker.js`, `wrangler.toml`: Önceki sürümden kalan isteğe bağlı API örneği; bu sürümün AI altyazısı bunları kullanmaz.
