@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
+  <script src="./local-transcriber.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -18,7 +19,7 @@
       <a class="brand" href="#" aria-label="SubStudio ana sayfa">
         <span class="brand-mark">焱</span>
         <span class="brand-name">Sub<span>Studio</span></span>
-        <span class="version">BETA 0.1</span>
+        <span class="version">BETA 0.2</span>
       </a>
       <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
       <div class="top-actions">
@@ -98,12 +99,16 @@
               <option value="16:9">16:9 — YouTube</option>
             </select>
             <div class="divider"></div>
-            <div class="section-header"><h2>Otomatik altyazı API</h2></div>
-            <p class="muted small-copy">Cloudflare Worker adresini gir. API anahtarını buraya yazma; Worker’ın gizli değişkenlerinde tutulur.</p>
-            <label for="workerUrl" class="field-label">Worker API adresi</label>
-            <input class="control" id="workerUrl" type="url" placeholder="https://sub-api.example.workers.dev" autocomplete="off" />
-            <button id="saveEndpoint" type="button" class="outline full">API adresini kaydet</button>
-            <p class="muted small-copy">İlk sürümde otomatik zamanlama Whisper-1 ile yapılır. Bu modelin sonlandırılması planlandığı için daha sonra güncellenecek.</p>
+            <div class="section-header"><h2>Cihazda otomatik altyazı <span>BETA</span></h2></div>
+            <p class="muted small-copy">API anahtarı veya Cloudflare Worker gerekmez. Çok dilli Whisper AI modeli ilk kullanımda internetten indirilir, videonun sesi cihazında işlenir. iPad'de ilk deneme için 10–30 saniyelik video önerilir; işlem yavaş olabilir.</p>
+            <label for="localLanguage" class="field-label">Konuşma dili</label>
+            <select id="localLanguage" class="control">
+              <option value="auto">Otomatik algıla</option>
+              <option value="turkish">Türkçe</option>
+              <option value="arabic">Arapça</option>
+              <option value="english">İngilizce</option>
+            </select>
+            <p class="muted small-copy">Not: Bu deneysel sürüm iPad Safari'de bellek sınırlarına takılabilir. Kur'an tilaveti gibi içerikleri yayımlamadan önce mutlaka metni doğrula.</p>
             <div class="divider"></div>
             <div class="section-header"><h2>Altyazı dosyaları</h2></div>
             <button id="downloadSRT" class="outline full" type="button">↓ SRT altyazısını indir</button>
@@ -147,7 +152,7 @@
             <div class="ai-icon">✧</div>
             <h3>Tek tıkla<br /><em>altyazı üret.</em></h3>
             <p>Videodaki konuşmayı otomatik yazıya çevir ve kelimeleri zamanlamayla yerleştir.</p>
-            <button type="button" class="primary full" id="autoCaption">✦ Otomatik altyazı oluştur</button>
+            <button type="button" class="primary full" id="autoCaption">✦ API olmadan altyazı oluştur</button>
             <div class="ai-status" id="aiStatus">Video seçtikten sonra kullanabilirsin.</div>
             <div class="divider"></div>
             <div class="quick-heading">İş akışı</div>
@@ -159,10 +164,10 @@
             <div class="quick-heading">Hızlı işlemler</div>
             <button type="button" id="sampleCaptions" class="quick-action">＋ Örnek altyazı ekle <span>›</span></button>
             <button type="button" id="quickSRT" class="quick-action">↓ SRT olarak kaydet <span>›</span></button>
-            <div class="privacy-note">⌁ Videon önizleme sırasında cihazında kalır. AI özelliğini kullanırsan dosyan transkripsiyon servisine iletilir.</div>
+            <div class="privacy-note">⌁ Videon ve sesi tarayıcıda kalır. AI modeli ilk seferde indirilir; harici API anahtarı gerekmez.</div>
           </div>
         </div>
-        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.1 <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
+        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.2 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
       </section>
     </main>
   </div>
