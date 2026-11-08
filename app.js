@@ -1,11 +1,11 @@
-/* 焱 SubStudio 0.1 — bağımsız, framework gerektirmeyen editör */
+/* 焱 SubStudio 0.4 — gelişmiş yazı tasarımı */
 'use strict';
 const $ = (id) => document.getElementById(id);
 const video = $('video');
 const frame = $('previewWindow');
 const subtitle = $('subtitlePreview');
 const captionText = $('subtitleText');
-const defaults = {font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',bottom:18,shadow:true,background:false,animation:'pop',ratio:'original'};
+const defaults = {font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',bottom:18,shadow:true,background:false,animation:'pop',ratio:'original',weight:800,spacing:0,align:'center',uppercase:false,animationSpeed:0.4,backgroundOpacity:62};
 const presets = {
   ember:{font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',shadow:true,background:false,animation:'pop'},
   clean:{font:"'DM Sans',Arial,sans-serif",size:54,stroke:0,color:'#ffffff',strokeColor:'#000000',shadow:true,background:false,animation:'fade'},
@@ -16,6 +16,10 @@ const presets = {
 };
 let file = null, objectURL = null, cues = [], activeCueId = null, selectedPreset='ember';
 let style={...defaults};
+try{const stored=JSON.parse(localStorage.getItem('substudio-caption-style')||'null');if(stored&&typeof stored==='object'){for(const key of Object.keys(defaults))if(Object.hasOwn(stored,key)&&typeof stored[key]===typeof defaults[key])style[key]=stored[key]}}catch{}
+const styledText=s=>style.uppercase?String(s).toLocaleUpperCase('tr-TR'):String(s);
+function persistStyle(){try{localStorage.setItem('substudio-caption-style',JSON.stringify(style))}catch{}}
+let previewTimeout=null;
 let renderedExportFile=null, exportStopByUser=false;
 let exporting=false, recording=null, drawFrameId=null, currentAudioContext=null, audioSource=null, exportStream=null;
 const safeNumber = (n,fallback=0) => Number.isFinite(Number(n)) ? Number(n) : fallback;
@@ -33,26 +37,34 @@ function updateRatio(){
  video.style.objectFit=r==='original'?'contain':'cover';
 }
 function updateSettings(){
- $('fontSelect').value=style.font;$('fontSize').value=style.size;$('fontSizeValue').textContent=`${style.size} px`;
- $('strokeSize').value=style.stroke;$('strokeValue').textContent=`${style.stroke} px`;
+ $('fontSelect').value=style.font;$('fontSize').value=style.size;$('fontSizeValue').textContent=style.size+' px';
+ $('strokeSize').value=style.stroke;$('strokeValue').textContent=style.stroke+' px';
  $('textColor').value=style.color;$('strokeColor').value=style.strokeColor;
- $('position').value=style.bottom;$('positionValue').textContent=`Alt · %${style.bottom}`;
+ $('fontWeight').value=style.weight;$('letterSpacing').value=style.spacing;
+ $('letterSpacingValue').textContent=style.spacing+' px';
+ $('animationSpeed').value=style.animationSpeed;$('animationSpeedValue').textContent=Number(style.animationSpeed).toFixed(2)+' sn';
+ $('textAlignSelect').value=style.align;$('uppercaseToggle').checked=style.uppercase;
+ $('backgroundOpacity').value=style.backgroundOpacity;$('backgroundOpacityValue').textContent='%'+style.backgroundOpacity;
+ $('position').value=style.bottom;$('positionValue').textContent='Alt · %'+style.bottom;
  $('shadowToggle').checked=style.shadow;$('backgroundToggle').checked=style.background;$('ratioSelect').value=style.ratio;
- document.querySelectorAll('[data-animation]').forEach((b)=>b.classList.toggle('selected',b.dataset.animation===style.animation));
- document.querySelectorAll('[data-preset]').forEach((b)=>b.classList.toggle('selected',b.dataset.preset===selectedPreset));
- updateRatio();showCue(true);
+ document.querySelectorAll('[data-animation]').forEach(b=>b.classList.toggle('selected',b.dataset.animation===style.animation));
+ document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('selected',b.dataset.preset===selectedPreset));
+ document.querySelectorAll('[data-text-color]').forEach(b=>b.classList.toggle('selected',b.dataset.textColor.toLowerCase()===style.color.toLowerCase()));
+ updateRatio();showCue(true);persistStyle();
 }
 function applyFontToPreview(){
- const width=frame.clientWidth||320, factor=width/720;
- captionText.style.fontFamily=style.font;
- captionText.style.fontSize=`${style.size*factor}px`;
- captionText.style.webkitTextStroke=`${style.stroke*factor}px ${style.strokeColor}`;
- captionText.style.paintOrder='stroke fill';
- captionText.style.color=style.color;
+ const factor=(frame.clientWidth||320)/720;
+ captionText.style.fontFamily=style.font;captionText.style.fontSize=(style.size*factor)+'px';
+ captionText.style.fontWeight=style.weight;captionText.style.letterSpacing=(style.spacing*factor)+'px';
+ captionText.style.webkitTextStroke=(style.stroke*factor)+'px '+style.strokeColor;
+ captionText.style.paintOrder='stroke fill';captionText.style.color=style.color;
  captionText.style.textShadow=style.shadow?'0 3px 10px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.3)':'none';
- captionText.style.background=style.background?'rgba(0,0,0,.62)':'transparent';
+ captionText.style.background=style.background?'rgba(0,0,0,'+(style.backgroundOpacity/100)+')':'transparent';
  captionText.style.borderRadius='6px';
- subtitle.style.bottom=`${style.bottom}%`;
+ subtitle.style.bottom=style.bottom+'%';
+ subtitle.style.textAlign=style.align;
+ subtitle.style.justifyContent=style.align==='left'?'flex-start':style.align==='right'?'flex-end':'center';
+ subtitle.style.animationDuration=style.animationSpeed+'s';
 }
 function getCueAt(t){return cues.find(c=>c.start<=t && t<c.end)}
 function showCue(force=false){
@@ -60,7 +72,7 @@ function showCue(force=false){
  applyFontToPreview();
  if(!cue){subtitle.style.display='none';activeCueId=null;return}
  if(force||activeCueId!==cue.id){
-   activeCueId=cue.id;captionText.textContent=cue.text;
+   activeCueId=cue.id;captionText.textContent=styledText(cue.text);
    subtitle.className=`subtitle-preview ${style.animation==='none'?'':style.animation}`;
    void subtitle.offsetWidth;
    subtitle.style.animation='none';void subtitle.offsetHeight;subtitle.style.animation='';
@@ -76,7 +88,7 @@ function syncTimeline(){
  showCue();
 }
 function renderCues(){
- updateSteps();const box=$('cueList');
+ updateSteps();$('designCaptions').hidden=!cues.length;const box=$('cueList');
  if(!cues.length){box.innerHTML='<div class="cue-empty">Henüz altyazı yok.<br>Cihazında AI ile oluştur veya elle ilk satırı ekle.</div>';showCue(true);return}
  box.innerHTML=cues.map((cue,i)=>`<div class="cue-card" data-cue-id="${cue.id}">
  <div class="cue-card-top"><span>● SATIR ${String(i+1).padStart(2,'0')}</span><button class="remove-cue" data-delete="${cue.id}" title="Satırı sil" aria-label="Satırı sil">× SİL</button></div>
@@ -157,7 +169,7 @@ async function transcribe(){
   if(file!==selectedFile)throw Error('Video değişti, işlem iptal edildi. Yeni video için yeniden başlat.');
   const made=groupWords(words);
   if(!made.length)throw Error('Zamanlanmış altyazı oluşturulamadı.');
-  cues=made;renderCues();switchTab('captions');
+  cues=made;renderCues();switchTab('style');
   $('aiStatus').textContent='✓ '+cues.length+' altyazı cihazında oluşturuldu. Metinleri kontrol edip düzenleyebilirsin.';
   notify(cues.length+' altyazı oluşturuldu! API anahtarı kullanılmadı.');
  }catch(err){
