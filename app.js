@@ -148,6 +148,7 @@ async function transcribe(){
  $('aiStatus').textContent='Ses videodan okunuyor. iPad’de bu işlem video süresi kadar sürebilir.';
  try{
   const words=await window.SubStudioLocalAI.transcribe(selectedFile,{
+   videoElement:video,
    language:$('localLanguage').value,
    onStatus:message=>{if(file===selectedFile)$('aiStatus').textContent=message}
   });
@@ -224,7 +225,7 @@ async function exportVideo(){
   exportStream=canvas.captureStream(30);
   const AC=window.AudioContext||window.webkitAudioContext;
   if(AC){
-   if(!currentAudioContext){currentAudioContext=new AC();audioSource=currentAudioContext.createMediaElementSource(video);audioSource.connect(currentAudioContext.destination)}
+   if(!currentAudioContext){const g=window.SubStudioLocalAI?.getAudioGraph?.(video);if(g){currentAudioContext=g.ctx;audioSource=g.source}else{currentAudioContext=new AC();audioSource=currentAudioContext.createMediaElementSource(video);audioSource.connect(currentAudioContext.destination)}}
    await currentAudioContext.resume();audioDest=currentAudioContext.createMediaStreamDestination();audioSource.connect(audioDest);
    for(const track of audioDest.stream.getAudioTracks())exportStream.addTrack(track);
   }
