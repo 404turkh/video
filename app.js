@@ -16,6 +16,7 @@ const presets = {
 };
 let file = null, objectURL = null, cues = [], activeCueId = null, selectedPreset='ember';
 let style={...defaults};
+let renderedExportFile=null;
 let exporting=false, recording=null, drawFrameId=null, currentAudioContext=null, audioSource=null, exportStream=null;
 const safeNumber = (n,fallback=0) => Number.isFinite(Number(n)) ? Number(n) : fallback;
 const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
@@ -101,7 +102,7 @@ function fileUpload(f){
  if(!f)return;
  if(!f.type.startsWith('video/')&&!/\.(mp4|mov|webm|m4v)$/i.test(f.name)){notify('Lütfen geçerli bir video yükle.');return}
  if(objectURL)URL.revokeObjectURL(objectURL);
- file=f;objectURL=URL.createObjectURL(f);video.src=objectURL;video.load();cues=[];activeCueId=null;renderCues();
+ resetExportSave();file=f;objectURL=URL.createObjectURL(f);video.src=objectURL;video.load();cues=[];activeCueId=null;renderCues();
  $('emptyState').style.display='none';$('previewBadge').style.display='block';$('aiStatus').textContent='Video hazır. API anahtarı olmadan cihazında otomatik altyazı deneyebilirsin.';
  $('videoMeta').textContent=`${f.name.length>22?f.name.slice(0,19)+'…':f.name} · ${(f.size/1024/1024).toFixed(1)} MB`;
  updateRatio();updateSteps();notify('Video yüklendi. Şimdi altyazı oluşturabilirsin.');
@@ -150,6 +151,7 @@ async function transcribe(){
   const words=await window.SubStudioLocalAI.transcribe(selectedFile,{
    videoElement:video,
    language:$('localLanguage').value,
+   model:$('localModel').value,
    onStatus:message=>{if(file===selectedFile)$('aiStatus').textContent=message}
   });
   if(file!==selectedFile)throw Error('Video değişti, işlem iptal edildi. Yeni video için yeniden başlat.');
@@ -209,39 +211,148 @@ function drawExportFrame(ctx,cw,ch,t){
    ctx.fillStyle=style.color;ctx.fillText(line,0,y);ctx.shadowBlur=0;ctx.shadowOffsetY=0;
  });ctx.restore();
 }
-function chooseMime(){const candidates=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];return candidates.find(m=>MediaRecorder.isTypeSupported(m))||''}
+function chooseMime(){
+ const candidates=[
+  'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
+  'video/mp4',
+  'video/webm;codecs="vp8,opus"',
+  'video/webm'
+ ];
+ return candidates.find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch{return false}})||'';
+}
+function resetExportSave(){
+ renderedExportFile=null;
+ $('saveRenderedVideo').hidden=true;
+ $('shareRenderedVideo').hidden=true;
+}
 async function exportVideo(){
  if(!hasVideo()){notify('Önce video seç.');return}
- if(typeof MediaRecorder==='undefined'||typeof HTMLCanvasElement.prototype.captureStream!=='function'){notify('Bu tarayıcı video kaydı desteklemiyor. SRT dışa aktarımı kullanılabilir.');$('exportStatus').textContent='Tarayıcın bu dışa aktarım yöntemini desteklemiyor.';return}
  if(exporting)return;
- exporting=true;let audioDest=null,ctx=null;
- $('startExport').hidden=true;$('stopExport').hidden=false;$('exportStatus').textContent='Video işleniyor. Sayfayı kapatma; kayıt video süresi boyunca devam eder.';
+ if(typeof MediaRecorder==='undefined'||typeof HTMLCanvasElement.prototype.captureStream!=='function'){
+  $('exportStatus').textContent='Bu Safari sürümü videoyu tarayıcıda kaydedemiyor. Diğer tarayıcı veya SRT indirme seçeneğini dene.';
+  notify('Video kaydı bu tarayıcıda desteklenmiyor.');
+  return;
+ }
+ if(!Number.isFinite(video.duration)||video.duration<=0){notify('Video süresi okunamıyor; MP4 dosyasını kontrol et.');return}
+ if(video.readyState<2){notify('Önce videoyu bir kez oynat, ardından dışa aktar.');return}
+ resetExportSave();
+ exporting=true;
+ let audioDest=null, ctx=null, exportTimer=null, ended=null, wasMuted=video.muted, recorderError=null;
+ let chunks=[], manualStop=false, resumedAudio=Promise.resolve();
+ $('startExport').hidden=true;
+ $('stopExport').hidden=false;
+ $('exportStatus').textContent='Kayıt başlatılıyor… iPad ekranını kapatma.';
  try{
-  const dims=fitCanvasSize();const canvas=document.createElement('canvas');canvas.width=dims.w;canvas.height=dims.h;ctx=canvas.getContext('2d',{alpha:false});
-  if(!ctx)throw Error('Canvas başlatılamadı');
-  video.pause();video.currentTime=0;
-  await new Promise((resolve,reject)=>{if(video.readyState>=2)return resolve();const ok=()=>{cleanup();resolve()},bad=()=>{cleanup();reject(Error('Video yüklenemedi'))},cleanup=()=>{video.removeEventListener('canplay',ok);video.removeEventListener('error',bad)};video.addEventListener('canplay',ok,{once:true});video.addEventListener('error',bad,{once:true})});
-  drawExportFrame(ctx,dims.w,dims.h,0);
-  exportStream=canvas.captureStream(30);
+  const dims=fitCanvasSize();
+  // iPad Safari: reduce memory + encoder overload for large vertical videos.
+  const touchMac=/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1;
+  const mobileSafari=/iPad|iPhone|iPod/.test(navigator.userAgent)||touchMac;
+  const shrink=mobileSafari?Math.min(1,1280/Math.max(dims.w,dims.h)):1;
+  const width=Math.max(2,Math.floor(dims.w*shrink/2)*2);
+  const height=Math.max(2,Math.floor(dims.h*shrink/2)*2);
+  const canvas=document.createElement('canvas');
+  canvas.width=width;canvas.height=height;
+  ctx=canvas.getContext('2d',{alpha:false});
+  if(!ctx)throw Error('Canvas açılamadı.');
+  video.pause();
+  video.currentTime=0;
+  video.muted=false;
+  drawExportFrame(ctx,width,height,0);
+  exportStream=canvas.captureStream(25);
+  if(!exportStream?.getVideoTracks()?.length)throw Error('Canvas video kanalı oluşturulamadı.');
+
   const AC=window.AudioContext||window.webkitAudioContext;
   if(AC){
-   if(!currentAudioContext){const g=window.SubStudioLocalAI?.getAudioGraph?.(video);if(g){currentAudioContext=g.ctx;audioSource=g.source}else{currentAudioContext=new AC();audioSource=currentAudioContext.createMediaElementSource(video);audioSource.connect(currentAudioContext.destination)}}
-   await currentAudioContext.resume();audioDest=currentAudioContext.createMediaStreamDestination();audioSource.connect(audioDest);
+   if(!currentAudioContext){
+    const graph=window.SubStudioLocalAI?.getAudioGraph?.(video);
+    if(graph){currentAudioContext=graph.ctx;audioSource=graph.source}
+    else{
+     currentAudioContext=new AC();
+     audioSource=currentAudioContext.createMediaElementSource(video);
+     audioSource.connect(currentAudioContext.destination);
+    }
+   }
+   audioDest=currentAudioContext.createMediaStreamDestination();
+   audioSource.connect(audioDest);
    for(const track of audioDest.stream.getAudioTracks())exportStream.addTrack(track);
+   // Request audio unlock during the user's tap; do not await yet.
+   resumedAudio=currentAudioContext.resume();
   }
-  const mime=chooseMime();recording=new MediaRecorder(exportStream,mime?{mimeType:mime,videoBitsPerSecond:4000000}:undefined);
-  let blobs=[];recording.ondataavailable=e=>{if(e.data?.size)blobs.push(e.data)};
-  const done=new Promise((resolve,reject)=>{recording.addEventListener('stop',resolve,{once:true});recording.addEventListener('error',e=>reject(e.error||Error('Kayıt işlemi başarısız')),{once:true})});
-  const tick=()=>{if(!exporting)return;drawExportFrame(ctx,dims.w,dims.h,video.currentTime);drawFrameId=requestAnimationFrame(tick)};
-  recording.start(500);tick();
-  const ended=()=>{if(recording?.state==='recording')recording.stop()};
+
+  const mime=chooseMime();
+  const recorderOptions=mime?{mimeType:mime,videoBitsPerSecond:2500000}: {videoBitsPerSecond:2500000};
+  recording=new MediaRecorder(exportStream,recorderOptions);
+  const outputType=recording.mimeType||mime||'video/mp4';
+  const completion=new Promise((resolve,reject)=>{
+   recording.addEventListener('dataavailable',e=>{if(e.data?.size)chunks.push(e.data)});
+   recording.addEventListener('stop',()=>recorderError?reject(recorderError):resolve(),{once:true});
+   recording.addEventListener('error',e=>{
+    recorderError=e.error||new Error('Safari kayıt işlemini durdurdu.');
+    if(recording?.state==='inactive')reject(recorderError);
+   },{once:true});
+  });
+  let lastShown=-1;
+  const tick=()=>{
+   if(!exporting)return;
+   try{
+    if(video.readyState>=2)drawExportFrame(ctx,width,height,video.currentTime||0);
+    const n=Math.floor(video.currentTime||0);
+    if(n!==lastShown){
+     lastShown=n;
+     $('exportStatus').textContent='Video kaydediliyor: '+timeString(n)+' / '+timeString(video.duration)+' — işlem bitince Kaydet düğmesi çıkacak.';
+    }
+   }catch(err){
+    recorderError=err;
+    if(recording?.state==='recording')recording.stop();
+    return;
+   }
+   if(video.ended&&recording?.state==='recording'){recording.stop();return}
+   drawFrameId=requestAnimationFrame(tick);
+  };
+  ended=()=>{if(recording?.state==='recording')recording.stop()};
   video.addEventListener('ended',ended,{once:true});
-  try{video.muted=false;await video.play()}catch(e){if(recording.state==='recording')recording.stop();throw Error('Video oynatılamadı: '+e.message)}
-  await done;video.removeEventListener('ended',ended);
-  if(blobs.length){const type=recording.mimeType||mime||'video/webm';const ext=type.includes('mp4')?'mp4':'webm';const b=new Blob(blobs,{type});downloadBlob(b,`${guessName()}_substudio.${ext}`);$('exportStatus').textContent=`✓ ${ext.toUpperCase()} video kaydı hazır. Ses veya görüntüde sorun varsa SRT dosyasını da kullanabilirsin.`;notify('Video dışa aktarıldı!')}
-  else $('exportStatus').textContent='Bu tarayıcı kayıt verisi üretmedi. SRT olarak dışa aktarabilirsin.';
- }catch(err){$('exportStatus').textContent='Hata: '+(err.message||'Dışa aktarılamadı');notify('Dışa aktarma başarısız: '+(err.message||'hata'))}
- finally{exporting=false;cancelAnimationFrame(drawFrameId);if(audioSource&&audioDest)try{audioSource.disconnect(audioDest)}catch{};if(exportStream)exportStream.getTracks().forEach(t=>t.stop());exportStream=null;recording=null;video.pause();$('startExport').hidden=false;$('stopExport').hidden=true;syncTimeline()}
+  recording.start(1000);
+  tick();
+  // Crucial: play() executes in the tap's user activation (no awaited calls above).
+  const playPromise=video.play();
+  await Promise.all([resumedAudio,playPromise]);
+  exportTimer=setTimeout(()=>{
+   if(recording?.state==='recording'){
+    recorderError=Error('Kayıt zaman aşımı. Daha kısa bir video dene.');
+    recording.stop();
+   }
+  },Math.min(480000,(video.duration+35)*1000));
+
+  await completion;
+  const bytes=chunks.reduce((sum,item)=>sum+item.size,0);
+  if(bytes<1024)throw Error('Safari video verisi üretmedi. MP4/H.264 ile yeniden dene.');
+  const type=outputType.includes('webm')?'video/webm':'video/mp4';
+  const ext=type==='video/webm'?'webm':'mp4';
+  const blob=new Blob(chunks,{type});
+  renderedExportFile=new File([blob],guessName()+'_SubStudio.'+ext,{type});
+  $('saveRenderedVideo').hidden=false;
+  $('shareRenderedVideo').hidden=typeof navigator.share!=='function';
+  $('exportStatus').textContent='✓ '+(manualStop?'Kısmi kayıt':'Kayıt')+' hazır ('+(bytes/1048576).toFixed(1)+' MB). iPad’de Dosyalara Kaydet / Paylaş düğmesine dokun; dosya otomatik kaydedilmiş sayılmaz.';
+  notify('Video hazır! İndir veya Dosyalara Kaydet düğmesine bas.');
+ }catch(err){
+  const message=String(err?.message||err||'Bilinmeyen hata');
+  $('exportStatus').textContent='Video kaydedilemedi: '+message;
+  notify('Video dışa aktarılamadı: '+message);
+ }finally{
+  clearTimeout(exportTimer);
+  exporting=false;
+  cancelAnimationFrame(drawFrameId);
+  if(ended)video.removeEventListener('ended',ended);
+  if(audioSource&&audioDest)try{audioSource.disconnect(audioDest)}catch{}
+  if(exportStream)exportStream.getTracks().forEach(track=>track.stop());
+  exportStream=null;
+  recording=null;
+  video.pause();
+  video.muted=wasMuted;
+  $('startExport').hidden=false;
+  $('stopExport').hidden=true;
+  syncTimeline();
+ }
 }
 function showExport(){if(!hasVideo()){notify('Önce video yükle.');return}
  $('exportStatus').textContent='';$('exportSummary').textContent=`${file.name} • ${timeString(video.duration)} • ${cues.length} altyazı • ${style.ratio==='original'?'Orijinal':style.ratio} oran`;
@@ -265,10 +376,24 @@ function wireEvents(){
  $('downloadSRT').addEventListener('click',downloadSRT);$('quickSRT').addEventListener('click',downloadSRT);
  $('uploadSRTButton').addEventListener('click',()=>$('srtInput').click());
  $('srtInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;const c=parseSRT(await f.text());if(c.length){cues=c;renderCues();switchTab('captions');notify(`${c.length} SRT satırı içe aktarıldı.`)}else notify('Dosyadan geçerli SRT satırı okunamadı.');e.target.value=''});
- $('newProject').addEventListener('click',()=>{if(!confirm('Yeni proje başlatılsın mı? Geçerli altyazılar silinir.'))return;video.pause();video.removeAttribute('src');video.load();if(objectURL)URL.revokeObjectURL(objectURL);file=null;objectURL=null;cues=[];activeCueId=null;renderCues();$('emptyState').style.display='flex';$('previewBadge').style.display='none';$('videoMeta').textContent='Henüz video yok';$('aiStatus').textContent='Video seçtikten sonra kullanabilirsin.';updateRatio();syncTimeline()});
+ $('newProject').addEventListener('click',()=>{if(!confirm('Yeni proje başlatılsın mı? Geçerli altyazılar silinir.'))return;video.pause();video.removeAttribute('src');video.load();if(objectURL)URL.revokeObjectURL(objectURL);file=null;objectURL=null;resetExportSave();cues=[];activeCueId=null;renderCues();$('emptyState').style.display='flex';$('previewBadge').style.display='none';$('videoMeta').textContent='Henüz video yok';$('aiStatus').textContent='Video seçtikten sonra kullanabilirsin.';updateRatio();syncTimeline()});
  $('exportVideoTop').addEventListener('click',showExport);
  $('startExport').addEventListener('click',exportVideo);
  $('stopExport').addEventListener('click',()=>{if(recording?.state==='recording')recording.stop()});
+ $('saveRenderedVideo').addEventListener('click',()=>{
+  if(!renderedExportFile){notify('Önce videoyu dışa aktar.');return}
+  downloadBlob(renderedExportFile,renderedExportFile.name);
+  $('exportStatus').textContent='İndirme başlatıldı. Safari Dosyalar / İndirilenler bölümünü kontrol et. Çalışmazsa Paylaş > Dosyalara Kaydet seç.';
+ });
+ $('shareRenderedVideo').addEventListener('click',()=>{
+  if(!renderedExportFile){notify('Önce videoyu dışa aktar.');return}
+  if(!navigator.share){notify('Paylaşım desteklenmiyor; Videoyu indir düğmesini kullan.');return}
+  const data={files:[renderedExportFile],title:'焱 SubStudio video'};
+  if(typeof navigator.canShare==='function'&&!navigator.canShare({files:data.files})){
+   notify('Safari bu dosyayı paylaşamıyor. Videoyu indir düğmesini kullan.');return;
+  }
+  navigator.share(data).catch(err=>{if(err?.name!=='AbortError')notify('Paylaşma hatası: '+String(err?.message||err))});
+ });
  window.addEventListener('resize',()=>applyFontToPreview());
  updateSettings();renderCues();syncTimeline();
 }
