@@ -16,7 +16,7 @@ const presets = {
 };
 let file = null, objectURL = null, cues = [], activeCueId = null, selectedPreset='ember';
 let style={...defaults};
-let renderedExportFile=null;
+let renderedExportFile=null, exportStopByUser=false;
 let exporting=false, recording=null, drawFrameId=null, currentAudioContext=null, audioSource=null, exportStream=null;
 const safeNumber = (n,fallback=0) => Number.isFinite(Number(n)) ? Number(n) : fallback;
 const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
@@ -236,9 +236,10 @@ async function exportVideo(){
  if(!Number.isFinite(video.duration)||video.duration<=0){notify('Video süresi okunamıyor; MP4 dosyasını kontrol et.');return}
  if(video.readyState<2){notify('Önce videoyu bir kez oynat, ardından dışa aktar.');return}
  resetExportSave();
+ exportStopByUser=false;
  exporting=true;
  let audioDest=null, ctx=null, exportTimer=null, ended=null, wasMuted=video.muted, recorderError=null;
- let chunks=[], manualStop=false, resumedAudio=Promise.resolve();
+ let chunks=[], resumedAudio=Promise.resolve();
  $('startExport').hidden=true;
  $('stopExport').hidden=false;
  $('exportStatus').textContent='Kayıt başlatılıyor… iPad ekranını kapatma.';
@@ -257,7 +258,8 @@ async function exportVideo(){
   video.pause();
   video.currentTime=0;
   video.muted=false;
-  drawExportFrame(ctx,width,height,0);
+  try { drawExportFrame(ctx,width,height,0) }
+  catch { ctx.fillStyle='#121216';ctx.fillRect(0,0,width,height) }
   exportStream=canvas.captureStream(25);
   if(!exportStream?.getVideoTracks()?.length)throw Error('Canvas video kanalı oluşturulamadı.');
 
@@ -288,7 +290,7 @@ async function exportVideo(){
    recording.addEventListener('stop',()=>recorderError?reject(recorderError):resolve(),{once:true});
    recording.addEventListener('error',e=>{
     recorderError=e.error||new Error('Safari kayıt işlemini durdurdu.');
-    if(recording?.state==='inactive')reject(recorderError);
+    reject(recorderError);
    },{once:true});
   });
   let lastShown=-1;
@@ -332,7 +334,7 @@ async function exportVideo(){
   renderedExportFile=new File([blob],guessName()+'_SubStudio.'+ext,{type});
   $('saveRenderedVideo').hidden=false;
   $('shareRenderedVideo').hidden=typeof navigator.share!=='function';
-  $('exportStatus').textContent='✓ '+(manualStop?'Kısmi kayıt':'Kayıt')+' hazır ('+(bytes/1048576).toFixed(1)+' MB). iPad’de Dosyalara Kaydet / Paylaş düğmesine dokun; dosya otomatik kaydedilmiş sayılmaz.';
+  $('exportStatus').textContent='✓ '+(exportStopByUser?'Kısmi kayıt':'Kayıt')+' hazır ('+(bytes/1048576).toFixed(1)+' MB). iPad’de Dosyalara Kaydet / Paylaş düğmesine dokun; dosya otomatik kaydedilmiş sayılmaz.';
   notify('Video hazır! İndir veya Dosyalara Kaydet düğmesine bas.');
  }catch(err){
   const message=String(err?.message||err||'Bilinmeyen hata');
@@ -379,7 +381,7 @@ function wireEvents(){
  $('newProject').addEventListener('click',()=>{if(!confirm('Yeni proje başlatılsın mı? Geçerli altyazılar silinir.'))return;video.pause();video.removeAttribute('src');video.load();if(objectURL)URL.revokeObjectURL(objectURL);file=null;objectURL=null;resetExportSave();cues=[];activeCueId=null;renderCues();$('emptyState').style.display='flex';$('previewBadge').style.display='none';$('videoMeta').textContent='Henüz video yok';$('aiStatus').textContent='Video seçtikten sonra kullanabilirsin.';updateRatio();syncTimeline()});
  $('exportVideoTop').addEventListener('click',showExport);
  $('startExport').addEventListener('click',exportVideo);
- $('stopExport').addEventListener('click',()=>{if(recording?.state==='recording')recording.stop()});
+ $('stopExport').addEventListener('click',()=>{if(recording?.state==='recording'){exportStopByUser=true;recording.stop()}});
  $('saveRenderedVideo').addEventListener('click',()=>{
   if(!renderedExportFile){notify('Önce videoyu dışa aktar.');return}
   downloadBlob(renderedExportFile,renderedExportFile.name);
