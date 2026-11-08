@@ -181,13 +181,16 @@ async function transcribe(){
   b.textContent='✦ API olmadan altyazı oluştur';
  }
 }
-function fitCanvasSize(){
- const sourceW=video.videoWidth,sourceH=video.videoHeight;let w=sourceW,h=sourceH;
+function fitCanvasSize(maxLong=1920,maxShort=1080){
+ const sourceW=video.videoWidth,sourceH=video.videoHeight;
+ let w=sourceW,h=sourceH;
  if(style.ratio!=='original'){
   const [a,b]=style.ratio.split(':').map(Number);const target=a/b;
-  if(sourceW/sourceH>target){w=Math.round(sourceH*target);h=sourceH}else{w=sourceW;h=Math.round(sourceW/target)}
+  if(sourceW/sourceH>target)w=Math.round(sourceH*target);
+  else h=Math.round(sourceW/target);
  }
- const scale=Math.min(1,1080/Math.max(w,h),1920/Math.max(w,h));return {w:Math.max(2,Math.round(w*scale/2)*2),h:Math.max(2,Math.round(h*scale/2)*2)};
+ const scale=Math.min(1,maxLong/Math.max(w,h),maxShort/Math.min(w,h));
+ return {w:Math.max(2,Math.round(w*scale/2)*2),h:Math.max(2,Math.round(h*scale/2)*2)};
 }
 function drawImageCover(ctx,cw,ch){const sw=video.videoWidth,sh=video.videoHeight;if(!sw||!sh)return;
  if(style.ratio==='original'){ctx.drawImage(video,0,0,cw,ch);return}
@@ -207,15 +210,15 @@ function drawExportFrame(ctx,cw,ch,t){
  ctx.clearRect(0,0,cw,ch);ctx.fillStyle='#141419';ctx.fillRect(0,0,cw,ch);drawImageCover(ctx,cw,ch);
  const cue=getCueAt(t);if(!cue)return;
  const scale=cw/720,sz=style.size*scale,sw=style.stroke*scale;
- ctx.save();ctx.font=`800 ${sz}px ${style.font}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
- const lines=splitLines(ctx,cue.text,cw*.88);if(!lines.length){ctx.restore();return}
+ ctx.save();ctx.font=`${style.weight} ${sz}px ${style.font}`;ctx.textAlign=style.align;ctx.textBaseline='middle';ctx.lineJoin='round';if('letterSpacing' in ctx)ctx.letterSpacing=(style.spacing*scale)+'px';
+ const lines=splitLines(ctx,styledText(cue.text),cw*.84);if(!lines.length){ctx.restore();return}
  const lineHeight=sz*1.2,blockHeight=lines.length*lineHeight;
  let centerY=ch*(1-style.bottom/100)-blockHeight/2;
- const p=clamp((t-cue.start)/.35,0,1);
+ const p=clamp((t-cue.start)/Math.max(.15,style.animationSpeed),0,1);
  let alpha=1,animScale=1,dy=0;
  if(style.animation==='pop'){alpha=p;animScale=.65+.35*(1-Math.pow(1-p,3))}else if(style.animation==='fade'){alpha=p}else if(style.animation==='slide'){alpha=p;dy=(1-p)*sz*.75}else if(style.animation==='glow'){alpha=.35+.65*p}
- ctx.globalAlpha=alpha;ctx.translate(cw/2,centerY+dy);ctx.scale(animScale,animScale);
- if(style.background){const boxWidth=Math.min(cw*.95,Math.max(...lines.map(l=>ctx.measureText(l).width))+sz*.42);ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(-boxWidth/2,-sz*.12,boxWidth,blockHeight+sz*.16)}
+ ctx.globalAlpha=alpha;ctx.translate(style.align==='left'?cw*.08:style.align==='right'?cw*.92:cw/2,centerY+dy);ctx.scale(animScale,animScale);
+ if(style.background){const boxWidth=Math.min(cw*.86,Math.max(...lines.map(l=>ctx.measureText(l).width))+sz*.42);ctx.fillStyle='rgba(0,0,0,'+(style.backgroundOpacity/100)+')';ctx.fillRect(style.align==='left'?-sz*.18:style.align==='right'?-boxWidth+sz*.18:-boxWidth/2,-sz*.12,boxWidth,blockHeight+sz*.16)}
  lines.forEach((line,i)=>{
    const y=i*lineHeight+lineHeight/2;
    if(style.shadow){ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=sz*.3;ctx.shadowOffsetY=sz*.07}
