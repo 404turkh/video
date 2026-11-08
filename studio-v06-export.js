@@ -244,7 +244,7 @@
    });
    const unlock=Promise.all([resumePromise,playPromise]);
    const startLimit=new Promise((_,reject)=>setTimeout(()=>reject(Error('Safari videoyu başlatmadı. Sayfa kayıt yapamıyor.')),8500));
-   await Promise.race([unlock,startLimit,hardStop]);
+   await Promise.race([unlock,startLimit,hardStop,cancelledPromise]);
    // Even if MediaRecorder never fires stop, the hard limit will exit this wait.
    await Promise.race([stopped,hardStop,cancelledPromise]);
    if(cancelled)throw Error('Kayıt iptal edildi.');
