@@ -8,10 +8,10 @@
   <title>焱 SubStudio — Altyazı Editörü</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Anton&family=Bebas+Neue&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
-  <script src="./local-transcriber.js?v=0.3" defer></script>
-  <script src="./app.js?v=0.3" defer></script>
+  <script src="./local-transcriber.js?v=0.4" defer></script>
+  <script src="./app.js?v=0.4" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +19,7 @@
       <a class="brand" href="#" aria-label="SubStudio ana sayfa">
         <span class="brand-mark">焱</span>
         <span class="brand-name">Sub<span>Studio</span></span>
-        <span class="version">BETA 0.3</span>
+        <span class="version">BETA 0.4</span>
       </a>
       <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
       <div class="top-actions">
@@ -52,15 +52,37 @@
             </div>
             <div class="divider"></div>
             <div class="section-header"><h2>Tipografi</h2><span>ÖZELLEŞTİR</span></div>
+            <div class="style-guide">AI ile oluşturduğun tüm altyazılara bu tasarım uygulanır. Metni değiştirmek için <strong>Altyazılar</strong> sekmesini kullan.</div>
             <label class="field-label" for="fontSelect">Yazı karakteri</label>
             <select class="control" id="fontSelect">
               <option value="'DM Sans',Arial,sans-serif">DM Sans — Modern</option>
-              <option value="'Space Grotesk',Arial,sans-serif">Space Grotesk — Bold</option>
+              <option value="'Poppins',Arial,sans-serif">Poppins — Yumuşak</option>
+              <option value="'Montserrat',Arial,sans-serif">Montserrat — Net</option>
+              <option value="'Oswald',Arial,sans-serif">Oswald — Dar</option>
+              <option value="'Anton',Impact,sans-serif">Anton — Kalın</option>
+              <option value="'Bebas Neue',Impact,sans-serif">Bebas Neue — Başlık</option>
+              <option value="'Space Grotesk',Arial,sans-serif">Space Grotesk — Teknolojik</option>
               <option value="Impact,'Arial Black',sans-serif">Impact — Büyük</option>
               <option value="Georgia,serif">Georgia — Klasik</option>
               <option value="'Amiri',Georgia,serif">Amiri — Arapça / Kur’an</option>
+              <option value="'Noto Sans Arabic',Arial,sans-serif">Noto Sans Arabic — Arapça</option>
               <option value="Arial,sans-serif">Arial — Sade</option>
             </select>
+            <div class="split-field">
+              <div><label class="field-label" for="fontWeight">Yazı kalınlığı</label><select class="control" id="fontWeight">
+                <option value="400">Normal</option><option value="500">Orta</option><option value="600">Yarı kalın</option><option value="700">Kalın</option><option value="800" selected>Çok kalın</option><option value="900">Ekstra</option>
+              </select></div>
+              <div><label class="field-label" for="letterSpacing">Harf aralığı <output id="letterSpacingValue">0 px</output></label><input id="letterSpacing" type="range" min="-2" max="8" step="0.5" value="0" /></div>
+            </div>
+            <label class="field-label">Hazır yazı renkleri</label>
+            <div class="color-swatches" id="colorSwatches">
+              <button type="button" aria-label="Beyaz yazı" title="Beyaz" data-text-color="#ffffff" style="--swatch:#ffffff"></button>
+              <button type="button" aria-label="Sarı yazı" title="Sarı" data-text-color="#ffe26d" style="--swatch:#ffe26d"></button>
+              <button type="button" aria-label="Turkuaz yazı" title="Turkuaz" data-text-color="#97fced" style="--swatch:#97fced"></button>
+              <button type="button" aria-label="Turuncu yazı" title="Turuncu" data-text-color="#ffa474" style="--swatch:#ffa474"></button>
+              <button type="button" aria-label="Pembe yazı" title="Pembe" data-text-color="#ff7cb2" style="--swatch:#ff7cb2"></button>
+              <button type="button" aria-label="Mor yazı" title="Mor" data-text-color="#c9b6ff" style="--swatch:#c9b6ff"></button>
+            </div>
             <div class="split-field">
               <div><label class="field-label" for="fontSize">Boyut <output id="fontSizeValue">58 px</output></label><input id="fontSize" type="range" min="24" max="110" step="1" value="58" /></div>
               <div><label class="field-label" for="strokeSize">Kontur <output id="strokeValue">4 px</output></label><input id="strokeSize" type="range" min="0" max="12" step="1" value="4" /></div>
@@ -78,10 +100,26 @@
               <button type="button" class="animation" data-animation="glow">✦<small>Glow</small></button>
               <button type="button" class="animation" data-animation="none">−<small>Sabit</small></button>
             </div>
+            <label class="field-label" for="animationSpeed">Animasyon süresi <output id="animationSpeedValue">0.40 sn</output></label>
+            <input id="animationSpeed" type="range" min="0.2" max="1.5" step="0.05" value="0.4" />
+            <label class="field-label" for="textAlignSelect">Metin hizalaması</label>
+            <select class="control" id="textAlignSelect">
+              <option value="center" selected>Ortada</option>
+              <option value="left">Solda</option>
+              <option value="right">Sağda</option>
+            </select>
             <label class="field-label" for="position">Altyazı konumu <output id="positionValue">Alt · %18</output></label>
             <input id="position" type="range" min="6" max="68" value="18" />
             <label class="toggle-line"><span>Metin arka planı</span><input id="backgroundToggle" type="checkbox" /><i></i></label>
             <label class="toggle-line"><span>Yazı gölgesi</span><input id="shadowToggle" type="checkbox" checked /><i></i></label>
+            <label class="toggle-line"><span>BÜYÜK HARFLER (Türkçe uyumlu)</span><input id="uppercaseToggle" type="checkbox" /><i></i></label>
+            <label class="field-label" for="backgroundOpacity">Arka plan koyuluğu <output id="backgroundOpacityValue">%62</output></label>
+            <input id="backgroundOpacity" type="range" min="0" max="95" value="62" step="5" />
+            <div class="style-toolbar">
+              <button class="outline" id="previewCaptionStyle" type="button">◉ Altyazıyı göster</button>
+              <button class="outline" id="resetCaptionStyle" type="button">↺ Stili sıfırla</button>
+            </div>
+            <p class="muted small-copy">Yazı rengi, harf aralığı ve animasyon ayarları önizlemede anında değişir. Ayarlar aynı cihazda saklanır.</p>
           </section>
           <section class="tab-panel" data-panel="captions">
             <div class="section-header"><h2>Altyazı zaman çizelgesi</h2><span id="cueCount">0 SATIR</span></div>
@@ -159,6 +197,7 @@
             <h3>Tek tıkla<br /><em>altyazı üret.</em></h3>
             <p>Videodaki konuşmayı otomatik yazıya çevir ve kelimeleri zamanlamayla yerleştir.</p>
             <button type="button" class="primary full" id="autoCaption">✦ API olmadan altyazı oluştur</button>
+            <button type="button" class="outline full ai-design-btn" id="designCaptions" hidden>✎ Oluşturulan altyazıyı tasarla</button>
             <div class="ai-status" id="aiStatus">Video seçtikten sonra kullanabilirsin. iPad’de ses okunurken video baştan oynatılır; ilk çalıştırmada AI modeli indirilir.</div>
             <div class="divider"></div>
             <div class="quick-heading">İş akışı</div>
@@ -173,7 +212,7 @@
             <div class="privacy-note">⌁ Videon ve sesi tarayıcıda kalır. AI modeli ilk seferde indirilir; harici API anahtarı gerekmez.</div>
           </div>
         </div>
-        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.3 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
+        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.4 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
       </section>
     </main>
   </div>
