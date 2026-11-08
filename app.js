@@ -300,7 +300,7 @@ async function exportVideo(){
   const mime=chooseMime();
   const recorderOptions=mime?{mimeType:mime,videoBitsPerSecond:profile.bitrate,audioBitsPerSecond:192000}: {videoBitsPerSecond:profile.bitrate,audioBitsPerSecond:192000};
   recording=new MediaRecorder(exportStream,recorderOptions);
-  const outputType=recording.mimeType||mime||'video/mp4';
+  const outputType=recording.mimeType||mime||'';
   const completion=new Promise((resolve,reject)=>{
    recording.addEventListener('dataavailable',e=>{if(e.data?.size)chunks.push(e.data)});
    recording.addEventListener('stop',()=>recorderError?reject(recorderError):resolve(),{once:true});
@@ -364,7 +364,9 @@ async function exportVideo(){
   }
   const bytes=chunks.reduce((sum,item)=>sum+item.size,0);
   if(bytes<1024)throw Error('Safari video verisi üretmedi. MP4/H.264 ile yeniden dene.');
-  const type=outputType.includes('webm')?'video/webm':'video/mp4';
+  const actualMime=outputType||chunks.find(part=>part.type)?.type||'';
+  if(!actualMime.includes('video/'))throw Error('Safari kayıt biçimini bildirmedi. Video güvenle kaydedilemedi.');
+  const type=actualMime.includes('webm')?'video/webm':'video/mp4';
   const ext=type==='video/webm'?'webm':'mp4';
   const blob=new Blob(chunks,{type});
   renderedExportFile=new File([blob],guessName()+'_SubStudio.'+ext,{type});
