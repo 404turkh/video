@@ -1,264 +1,84 @@
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#101015" />
-  <meta name="description" content="焱 SubStudio — Videolar için otomatik ve animasyonlu altyazı editörü." />
-  <title>焱 SubStudio — Altyazı Editörü</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Anton&family=Bebas+Neue&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=0.5" />
-  <script src="./local-transcriber.js?v=0.4" defer></script>
-  <script src="./subtitle-timing.js?v=0.5" defer></script>
-  <script src="./app.js?v=0.5" defer></script>
-</head>
-<body>
-  <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="SubStudio ana sayfa">
-        <span class="brand-mark">焱</span>
-        <span class="brand-name">Sub<span>Studio</span></span>
-        <span class="version">BETA 0.5</span>
-      </a>
-      <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
-      <div class="top-actions">
-        <button class="ghost small" id="newProject" type="button"><span>↻</span> <span class="desktop-only">Yeni proje</span></button>
-        <button class="primary small" id="exportVideoTop" type="button">↗ <span>Videoyu dışa aktar</span></button>
-      </div>
-    </header>
-    <main class="workspace">
-      <aside class="sidebar">
-        <div class="sidebar-head">
-          <div class="eyebrow">WORKSPACE / 01</div>
-          <h1>Altyazı <em>tasarla.</em></h1>
-          <p>Sesi algıla, kelimeleri düzenle, kendi tarzını videoya taşı.</p>
-        </div>
-        <div class="tabbar" role="tablist" aria-label="Düzenleme araçları">
-          <button class="tab active" role="tab" aria-selected="true" data-tab="style">✦ Stil</button>
-          <button class="tab" role="tab" aria-selected="false" data-tab="captions">☷ Altyazılar</button>
-          <button class="tab" role="tab" aria-selected="false" data-tab="settings">⚙ Ayarlar</button>
-        </div>
-        <div class="sidebar-scroll">
-          <section class="tab-panel active" data-panel="style">
-            <div class="section-header"><h2>Hazır tasarımlar</h2><span>6 STİL</span></div>
-            <div class="preset-grid" id="presetGrid">
-              <button class="preset selected" data-preset="ember" type="button"><span class="preset-sample ember">PARLA</span><small>Ember</small></button>
-              <button class="preset" data-preset="clean" type="button"><span class="preset-sample clean">Minimal</span><small>Clean</small></button>
-              <button class="preset" data-preset="neon" type="button"><span class="preset-sample neon">NEON</span><small>Neon</small></button>
-              <button class="preset" data-preset="cinema" type="button"><span class="preset-sample cinema">Cinema</span><small>Cinema</small></button>
-              <button class="preset" data-preset="pop" type="button"><span class="preset-sample pop">POP!</span><small>Pop Art</small></button>
-              <button class="preset" data-preset="verse" type="button"><span class="preset-sample verse">السَّلَامُ</span><small>Verse</small></button>
-            </div>
-            <div class="divider"></div>
-            <div class="section-header"><h2>Tipografi</h2><span>ÖZELLEŞTİR</span></div>
-            <div class="style-guide">AI ile oluşturduğun tüm altyazılara bu tasarım uygulanır. Metni değiştirmek için <strong>Altyazılar</strong> sekmesini kullan.</div>
-            <label class="field-label" for="fontSelect">Yazı karakteri</label>
-            <select class="control" id="fontSelect">
-              <option value="'DM Sans',Arial,sans-serif">DM Sans — Modern</option>
-              <option value="'Poppins',Arial,sans-serif">Poppins — Yumuşak</option>
-              <option value="'Montserrat',Arial,sans-serif">Montserrat — Net</option>
-              <option value="'Oswald',Arial,sans-serif">Oswald — Dar</option>
-              <option value="'Anton',Impact,sans-serif">Anton — Kalın</option>
-              <option value="'Bebas Neue',Impact,sans-serif">Bebas Neue — Başlık</option>
-              <option value="'Space Grotesk',Arial,sans-serif">Space Grotesk — Teknolojik</option>
-              <option value="Impact,'Arial Black',sans-serif">Impact — Büyük</option>
-              <option value="Georgia,serif">Georgia — Klasik</option>
-              <option value="'Amiri',Georgia,serif">Amiri — Arapça / Kur’an</option>
-              <option value="'Noto Sans Arabic',Arial,sans-serif">Noto Sans Arabic — Arapça</option>
-              <option value="Arial,sans-serif">Arial — Sade</option>
-            </select>
-            <div class="split-field">
-              <div><label class="field-label" for="fontWeight">Yazı kalınlığı</label><select class="control" id="fontWeight">
-                <option value="400">Normal</option><option value="500">Orta</option><option value="600">Yarı kalın</option><option value="700">Kalın</option><option value="800" selected>Çok kalın</option><option value="900">Ekstra</option>
-              </select></div>
-              <div><label class="field-label" for="letterSpacing">Harf aralığı <output id="letterSpacingValue">0 px</output></label><input id="letterSpacing" type="range" min="-2" max="8" step="0.5" value="0" /></div>
-            </div>
-            <label class="field-label">Hazır yazı renkleri</label>
-            <div class="color-swatches" id="colorSwatches">
-              <button type="button" aria-label="Beyaz yazı" title="Beyaz" data-text-color="#ffffff" style="--swatch:#ffffff"></button>
-              <button type="button" aria-label="Sarı yazı" title="Sarı" data-text-color="#ffe26d" style="--swatch:#ffe26d"></button>
-              <button type="button" aria-label="Turkuaz yazı" title="Turkuaz" data-text-color="#97fced" style="--swatch:#97fced"></button>
-              <button type="button" aria-label="Turuncu yazı" title="Turuncu" data-text-color="#ffa474" style="--swatch:#ffa474"></button>
-              <button type="button" aria-label="Pembe yazı" title="Pembe" data-text-color="#ff7cb2" style="--swatch:#ff7cb2"></button>
-              <button type="button" aria-label="Mor yazı" title="Mor" data-text-color="#c9b6ff" style="--swatch:#c9b6ff"></button>
-            </div>
-            <div class="divider"></div>
-            <div class="section-header"><h2>Yatay yazı şekli</h2><span>GENİŞLİK / EĞİM</span></div>
-            <p class="muted small-copy">Yazıyı yatay olarak genişlet, daralt veya eğ. Video yönünü değiştirmez; yalnızca altyazıyı dönüştürür.</p>
-            <label class="field-label" for="horizontalScale">Yatay genişlik <output id="horizontalScaleValue">%100</output></label>
-            <input id="horizontalScale" type="range" min="70" max="150" step="5" value="100" />
-            <div class="split-field">
-              <div><label class="field-label" for="skewX">Yatay eğim <output id="skewXValue">0°</output></label>
-                <input id="skewX" type="range" min="-20" max="20" step="1" value="0" /></div>
-              <div><label class="field-label" for="rotateText">Döndürme <output id="rotateTextValue">0°</output></label>
-                <input id="rotateText" type="range" min="-15" max="15" step="1" value="0" /></div>
-            </div>
-            <div class="divider"></div>
-            <div class="split-field">
-              <div><label class="field-label" for="fontSize">Boyut <output id="fontSizeValue">58 px</output></label><input id="fontSize" type="range" min="24" max="110" step="1" value="58" /></div>
-              <div><label class="field-label" for="strokeSize">Kontur <output id="strokeValue">4 px</output></label><input id="strokeSize" type="range" min="0" max="12" step="1" value="4" /></div>
-            </div>
-            <div class="split-field">
-              <div><label class="field-label" for="textColor">Yazı rengi</label><div class="color-box"><input id="textColor" type="color" value="#ffffff" /><span>Metin</span></div></div>
-              <div><label class="field-label" for="strokeColor">Çizgi rengi</label><div class="color-box"><input id="strokeColor" type="color" value="#17131b" /><span>Çerçeve</span></div></div>
-            </div>
-            <div class="divider"></div>
-            <div class="section-header"><h2>Animasyon</h2><span>HAREKET</span></div>
-            <div class="animation-grid" id="animationGrid">
-              <button type="button" class="animation selected" data-animation="pop">◉<small>Pop</small></button>
-              <button type="button" class="animation" data-animation="fade">◌<small>Fade</small></button>
-              <button type="button" class="animation" data-animation="slide">↑<small>Slide</small></button>
-              <button type="button" class="animation" data-animation="glow">✦<small>Glow</small></button>
-              <button type="button" class="animation" data-animation="none">−<small>Sabit</small></button>
-            </div>
-            <label class="field-label" for="animationSpeed">Animasyon süresi <output id="animationSpeedValue">0.40 sn</output></label>
-            <input id="animationSpeed" type="range" min="0.2" max="1.5" step="0.05" value="0.4" />
-            <label class="field-label" for="textAlignSelect">Metin hizalaması</label>
-            <select class="control" id="textAlignSelect">
-              <option value="center" selected>Ortada</option>
-              <option value="left">Solda</option>
-              <option value="right">Sağda</option>
-            </select>
-            <label class="field-label" for="position">Altyazı konumu <output id="positionValue">Alt · %18</output></label>
-            <input id="position" type="range" min="6" max="68" value="18" />
-            <label class="toggle-line"><span>Metin arka planı</span><input id="backgroundToggle" type="checkbox" /><i></i></label>
-            <label class="toggle-line"><span>Yazı gölgesi</span><input id="shadowToggle" type="checkbox" checked /><i></i></label>
-            <label class="toggle-line"><span>BÜYÜK HARFLER (Türkçe uyumlu)</span><input id="uppercaseToggle" type="checkbox" /><i></i></label>
-            <label class="field-label" for="backgroundOpacity">Arka plan koyuluğu <output id="backgroundOpacityValue">%62</output></label>
-            <input id="backgroundOpacity" type="range" min="0" max="95" value="62" step="5" />
-            <div class="style-toolbar">
-              <button class="outline" id="previewCaptionStyle" type="button">◉ Altyazıyı göster</button>
-              <button class="outline" id="resetCaptionStyle" type="button">↺ Stili sıfırla</button>
-            </div>
-            <p class="muted small-copy">Yazı rengi, harf aralığı ve animasyon ayarları önizlemede anında değişir. Ayarlar aynı cihazda saklanır.</p>
-          </section>
-          <section class="tab-panel" data-panel="captions">
-            <div class="section-header"><h2>Altyazı zaman çizelgesi</h2><span id="cueCount">0 SATIR</span></div>
-            <p class="muted small-copy">AI kelime zamanlarını kullanıp cümleleri bölüyor. Konuşma tanıma hataları yine elle düzeltilmelidir.</p>
-            <div class="smart-reflow">
-              <label class="field-label" for="captionDensity">Altyazı uzunluğu</label>
-              <select id="captionDensity" class="control">
-                <option value="short">Kısa · 1 satır (hızlı videolar)</option>
-                <option value="balanced" selected>Dengeli · 1–2 satır</option>
-                <option value="long">Geniş · 2 satır</option>
-              </select>
-              <button type="button" class="primary full" id="smartReflow">✦ Akıllı böl ve zamanla</button>
-              <button type="button" class="outline full" id="undoSmartReflow" hidden>↶ Son düzeltmeyi geri al</button>
-              <div class="smart-reflow-status" id="timingStatus" role="status" aria-live="polite">AI altyazısı oluşturduğunda cümleleri buradan yeniden düzenleyebilirsin.</div>
-            </div>
-            <div class="caption-list" id="cueList"></div>
-            <button class="outline full" type="button" id="addCue">+ Yeni altyazı ekle</button>
-          </section>
-          <section class="tab-panel" data-panel="settings">
-            <div class="section-header"><h2>Video çerçevesi</h2><span>FORMAT</span></div>
-            <label for="ratioSelect" class="field-label">Görüntü oranı</label>
-            <select class="control" id="ratioSelect">
-              <option value="original">Orijinal</option>
-              <option value="9:16">9:16 — Reels / TikTok</option>
-              <option value="1:1">1:1 — Kare</option>
-              <option value="16:9">16:9 — YouTube</option>
-            </select>
-            <div class="divider"></div>
-            <div class="section-header"><h2>Cihazda otomatik altyazı <span>BETA</span></h2></div>
-            <p class="muted small-copy">API anahtarı veya Cloudflare Worker gerekmez. Çok dilli Whisper AI modeli ilk kullanımda internetten indirilir, videonun sesi cihazında işlenir. iPad'de ilk deneme için 10–30 saniyelik video önerilir; işlem yavaş olabilir.</p>
-            <label for="localLanguage" class="field-label">Konuşma dili</label>
-            <select id="localLanguage" class="control">
-              <option value="turkish" selected>Türkçe — Türkçe yaz</option>
-              <option value="auto">Dili otomatik algıla</option>
-              <option value="arabic">Arapça</option>
-              <option value="english">İngilizce</option>
-            </select>
-            <label for="localModel" class="field-label">Konuşma tanıma modeli</label>
-            <select id="localModel" class="control">
-              <option value="accurate" selected>Daha doğru — Whisper Base (önerilen)</option>
-              <option value="fast">Hızlı / düşük bellek — Whisper Tiny</option>
-            </select>
-            <p class="muted small-copy">Türkçe konuşma Türkçe olarak yazılır; İngilizceye çeviri yapılmaz. İlk kullanımda seçilen AI modeli indirilir. Algılanan kelimeleri mutlaka kontrol et.</p>
-            <p class="muted small-copy">Not: Bu deneysel sürüm iPad Safari'de bellek sınırlarına takılabilir. Kur'an tilaveti gibi içerikleri yayımlamadan önce mutlaka metni doğrula.</p>
-            <div class="divider"></div>
-            <div class="section-header"><h2>Altyazı dosyaları</h2></div>
-            <button id="downloadSRT" class="outline full" type="button">↓ SRT altyazısını indir</button>
-            <button id="uploadSRTButton" class="outline full" type="button">↑ SRT dosyası yükle</button>
-            <input id="srtInput" type="file" accept=".srt,text/plain" hidden />
-          </section>
-        </div>
-        <div class="sidebar-foot"><span class="status-indicator"></span><span>焱 SubStudio · Tarayıcı editörü</span></div>
-      </aside>
-      <section class="stage-area">
-        <div class="stage-top">
-          <div><div class="eyebrow">CANLI ÖNİZLEME</div><h2>Senin videon. <span>Senin stilin.</span></h2></div>
-          <div class="top-tools"><span id="videoMeta">Henüz video yok</span><button class="outline" id="changeVideo" type="button">↑ Video yükle</button></div>
-        </div>
-        <div class="stage-content">
-          <div class="preview-shell">
-            <div class="preview-window" id="previewWindow" style="aspect-ratio:9/16">
-              <video id="video" playsinline preload="metadata" crossorigin="anonymous"></video>
-              <div class="video-vignette"></div>
-              <div id="subtitlePreview" class="subtitle-preview"><span id="subtitleText"></span></div>
-              <div id="emptyState" class="empty-state">
-                <div class="empty-glow"><span>焱</span></div>
-                <div class="upload-title">Burada başlıyor.</div>
-                <p>Videonu yükle, etkileyici altyazılar oluştur.</p>
-                <button type="button" id="emptyUpload" class="primary">↑ Video seç</button>
-                <small>MP4 / WebM · Yerel önizleme</small>
-              </div>
-              <div id="previewBadge" class="preview-badge">● ÖNİZLEME</div>
-            </div>
-            <div class="transport">
-              <button class="transport-play" id="playPause" type="button" aria-label="Oynat veya duraklat">▶</button>
-              <span id="timeCurrent">00:00</span>
-              <input id="seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Video konumu" />
-              <span id="timeTotal">00:00</span>
-              <button id="muteButton" type="button" class="transport-mute" aria-label="Sesi aç veya kapat">♫</button>
-            </div>
-            <div class="preview-hint">✧ Yazı ve animasyon değişiklikleri önizlemeye anında uygulanır.</div>
-          </div>
-          <div class="quick-panel">
-            <div class="panel-eyebrow">YAPAY ZEKÂ</div>
-            <div class="ai-icon">✧</div>
-            <h3>Tek tıkla<br /><em>altyazı üret.</em></h3>
-            <p>Videodaki konuşmayı otomatik yazıya çevir ve kelimeleri zamanlamayla yerleştir.</p>
-            <button type="button" class="primary full" id="autoCaption">✦ API olmadan altyazı oluştur</button>
-            <button type="button" class="outline full ai-design-btn" id="designCaptions" hidden>✎ Oluşturulan altyazıyı tasarla</button>
-            <div class="ai-status" id="aiStatus">Video seçtikten sonra kullanabilirsin. iPad’de ses okunurken video baştan oynatılır; ilk çalıştırmada AI modeli indirilir.</div>
-            <div class="divider"></div>
-            <div class="quick-heading">İş akışı</div>
-            <div class="step"><b>01</b><span>Videonu yükle</span><i id="stepVideo">○</i></div>
-            <div class="step"><b>02</b><span>Altyazıyı oluştur</span><i id="stepCues">○</i></div>
-            <div class="step"><b>03</b><span>Stilini belirle</span><i>✓</i></div>
-            <div class="step"><b>04</b><span>Videonu kaydet</span><i>↗</i></div>
-            <div class="divider"></div>
-            <div class="quick-heading">Hızlı işlemler</div>
-            <button type="button" id="sampleCaptions" class="quick-action">＋ Örnek altyazı ekle <span>›</span></button>
-            <button type="button" id="quickSRT" class="quick-action">↓ SRT olarak kaydet <span>›</span></button>
-            <div class="privacy-note">⌁ Videon ve sesi tarayıcıda kalır. AI modeli ilk seferde indirilir; harici API anahtarı gerekmez.</div>
-          </div>
-        </div>
-        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.5 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
-      </section>
-    </main>
-  </div>
-  <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/*" hidden />
-  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
-  <dialog id="exportDialog">
-    <form method="dialog"><button class="dialog-close" aria-label="Kapat">×</button></form>
-    <div class="dialog-icon">↗</div><h2>Videoyu dışa aktar</h2>
-    <p>Altyazılar görüntünün içine işlenecek; orijinal video sesi korunmaya çalışılacak. Kayıt bitince iPad'de Dosyalara Kaydet / Paylaş düğmesini kullanabilirsin. Safari biçim desteği cihazına göre değişebilir.</p>
-    <div class="export-summary" id="exportSummary"></div>
-    <label class="field-label" for="exportQuality">Video çıkış kalitesi</label>
-    <select class="control" id="exportQuality">
-      <option value="high" selected>1080p · Yüksek kalite (önerilen)</option>
-      <option value="smooth">720p · Akıcı / düşük yük</option>
-      <option value="source">Kaynağa yakın · Deneysel / yüksek yük</option>
-    </select>
-    <p class="muted small-copy">1080p yüksek kalite daha net görüntü sağlar. iPad donarsa 720p Akıcı seçeneğini dene. Uzun videolarda Safari belleği yetersiz kalabilir; bu yöntem henüz garantili değildir.</p>
-    <button id="startExport" class="primary full" type="button">Kayıt işlemini başlat</button>
-    <button id="stopExport" class="outline full" type="button" hidden>Kaydı durdur</button>
-    <div class="ai-status" id="exportStatus" role="status" aria-live="polite"></div>
-    <button id="saveRenderedVideo" class="primary full" type="button" hidden>↓ Videoyu indir</button>
-    <button id="shareRenderedVideo" class="outline full" type="button" hidden>↗ Dosyalara Kaydet / Paylaş</button>
-  </dialog>
-</body>
-</html>
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0d0e12"><title>焱 SubStudio — Video ve Altyazı Stüdyosu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Anton&family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./studio-v06.css?v=0.6">
+<script src="./local-transcriber.js?v=0.4" defer></script><script src="./subtitle-timing.js?v=0.5" defer></script>
+<script src="./studio-v06-storage.js?v=0.6" defer></script><script src="./studio-v06-export.js?v=0.6" defer></script><script src="./studio-v06.js?v=0.6" defer></script>
+</head><body><header class="app-header"><a class="brand" href="#project"><span class="mark">焱</span><span>Sub<b>Studio</b></span><span class="version">BETA 0.6</span></a>
+<div class="header-actions"><span id="saveStatus" class="save-status" role="status" aria-live="polite">Taslak açılıyor…</span>
+<button type="button" id="saveProject" class="outline">◉ Kaydet</button><button type="button" id="backupProject" class="primary">↓ Yedek indir</button></div></header>
+<div class="app-body"><nav class="side-nav" aria-label="Çalışma bölümleri">
+<button type="button" data-page="project" class="active"><span class="nav-icon">▣</span>Proje</button><button type="button" data-page="captions" class=""><span class="nav-icon">☷</span>AI Altyazı</button><button type="button" data-page="style" class=""><span class="nav-icon">✦</span>Yazı Stili</button><button type="button" data-page="layers" class=""><span class="nav-icon">▤</span>Ekstra Metin</button><button type="button" data-page="export" class=""><span class="nav-icon">↗</span>Dışa Aktar</button>
+<div class="nav-note">焱 v0.6<br>Her işlem ayrı bölümde. Taslak otomatik kaydedilir.</div></nav>
+<main class="work-area"><div class="editor-col"><section class="page active" data-page="project" aria-label="project"><div class="page-heading"><div class="small-label">01 / ÇALIŞMA ALANI</div><h1>Projen <em>güvende.</em></h1><p>Videonu yükle, altyazı ve metinlerini ayrı bölümlerde düzenle. Değişiklikler otomatik saklanır.</p></div><div class="panel"><div class="panel-heading"><h2>Video dosyası</h2><span class="micro">YEREL CİHAZ</span></div><button class="upload-zone" type="button" id="chooseVideo" style="width:100%"><span class="upload-icon">↑</span><b>Video seç / değiştir</b><span>MP4, MOV, WebM · iPad Dosyalar</span></button>
+<input id="videoInput" type="file" accept="video/*,.mp4,.mov,.webm,.m4v" hidden>
+<div class="file-info" id="mediaInfo" style="margin-top:14px">Video yüklenmedi.</div>
+<div class="notice-status" id="mediaSaveStatus" role="status">Cihaz depolama durumu burada görünür.</div></div><div class="panel"><div class="panel-heading"><h2>Proje bilgileri</h2><span class="micro">OTOMATİK KAYIT</span></div><label class="field"><span>Proje adı</span><input id="projectName" type="text" maxlength="80" value="Yeni video projesi"></label><div class="two-buttons"><button type="button" class="outline" id="importBackup">↑ Yedekten aç</button><button type="button" class="danger" id="deleteProject">↺ Yeni proje</button></div>
+<input id="backupInput" type="file" accept=".json,.substudio.json,application/json" hidden>
+<p class="help" style="margin-top:14px">Proje yedeği altyazıları, yazı ayarlarını ve ekstra metinleri içerir, videonun kendisini içermez. Video ayrıca tarayıcıda saklanmaya çalışılır.</p>
+<div class="warning">iPad depolama sınırı veya Safari verilerinin silinmesi taslağı etkileyebilir. Önemli düzenlemelerinde sağ üstten <b>Yedek indir</b> düğmesini kullan.</div></div></section><section class="page" data-page="captions" aria-label="captions"><div class="page-heading"><div class="small-label">02 / ALTYAZI EDİTÖRÜ</div><h1>Sesle <em>uyumlu yazı.</em></h1><p>AI altyazıyı oluştur, satırları akıllıca böl ve her cümlenin süresini düzelt.</p></div><div class="panel"><div class="panel-heading"><h2>Otomatik altyazı</h2><span class="micro">CİHAZDA · BETA</span></div><div class="form-grid">
+<label class="field"><span>Konuşma dili</span><select id="aiLanguage"><option value="turkish">Türkçe</option><option value="arabic">Arapça</option><option value="english">İngilizce</option><option value="auto">Otomatik algıla</option></select></label>
+<label class="field"><span>AI modeli</span><select id="aiModel"><option value="accurate">Whisper Base · Daha doğru</option><option value="fast">Whisper Tiny · Daha hafif</option></select></label></div>
+<button type="button" id="autoCaption" class="primary full">✦ Otomatik altyazı oluştur</button>
+<div id="autoStatus" class="notice-status" role="status" aria-live="polite">API gerekmez. İlk kullanımda AI modeli indirilir. 90 saniyeden kısa video önerilir.</div></div><div class="panel"><div class="panel-heading"><h2>Akıllı cümle bölme</h2><span class="micro"><span id="cueCount">0 SATIR</span></span></div><label class="field"><span>Altyazı uzunluğu</span><select id="captionDensity"><option value="short">Kısa · Tek satır</option><option value="balanced">Dengeli · 1–2 satır</option><option value="long">Uzun · 2 satır</option></select></label><div class="two-buttons"><button type="button" class="outline" id="reflowCues">✦ Akıllı böl ve zamanla</button><button type="button" class="outline" id="undoReflow" disabled>↶ Geri al</button></div>
+<p id="timingStatus" class="help" style="margin-top:14px">Kelime zamanlarıyla bölünür, ancak AI hataları elle düzeltilmelidir.</p></div><div class="panel"><div class="panel-heading"><h2>Altyazı satırları</h2><button type="button" id="addCue" class="outline">+ Satır ekle</button></div><div id="cueList" class="cue-list"><div class="empty-list">Henüz altyazı yok.</div></div></div></section><section class="page" data-page="style" aria-label="style"><div class="page-heading"><div class="small-label">03 / YAZI TASARIMI</div><h1>Kendi <em>stilini seç.</em></h1><p>Bu bölüm sadece altyazıları değiştirir. Ekstra metinler bağımsız katman olarak düzenlenir.</p></div><div class="panel"><div class="panel-heading"><h2>Hazır altyazı tasarımları</h2><span class="micro">6 HAZIR STİL</span></div><div class="preset-list">
+<button type="button" data-preset="ember">PARLA<span>Ember</span></button>
+<button type="button" data-preset="minimal">Sade<span>Minimal</span></button>
+<button type="button" data-preset="neon">NEON<span>Neon</span></button>
+<button type="button" data-preset="cinema">Cinema<span>Sinema</span></button>
+<button type="button" data-preset="pop">POP!<span>Pop Art</span></button>
+<button type="button" data-preset="verse">السَّلَامُ<span>Arapça</span></button></div>
+<button class="outline" id="resetStyle" type="button">↺ Stili sıfırla</button></div><div class="panel"><div class="panel-heading"><h2>Yazı karakteri ve renk</h2><span class="micro">TIPOGRAFİ</span></div><label class="field"><span>Font</span><select id="captionFont"><option value="DM Sans">DM Sans</option><option value="Poppins">Poppins</option><option value="Montserrat">Montserrat</option><option value="Anton">Anton</option><option value="Bebas Neue">Bebas Neue</option><option value="Oswald">Oswald</option><option value="Impact">Impact</option><option value="Georgia">Georgia</option><option value="Amiri">Amiri · Arapça</option><option value="Noto Sans Arabic">Noto Sans Arabic</option></select></label><div class="form-grid"><label class="field"><span>Boyut <output id="captionSizeOut"></output></span><input id="captionSize" type="range" min="24" max="105" value="58" step="1"></label><label class="field"><span>Kalınlık</span><select id="captionWeight"><option value="400">Normal</option><option value="600">Yarı kalın</option><option value="700">Kalın</option><option value="800">Çok kalın</option><option value="900">Ekstra kalın</option></select></label><label class="field"><span>Yazı rengi</span><input type="color" id="captionColor" value="#ffffff"></label><label class="field"><span>Kontur rengi</span><input type="color" id="outlineColor" value="#17131b"></label><label class="field"><span>Kontur <output id="captionOutlineOut"></output></span><input id="captionOutline" type="range" min="0" max="12" value="4" step="1"></label><label class="field"><span>Alt konum <output id="captionBottomOut"></output></span><input id="captionBottom" type="range" min="5" max="70" value="16" step="1"></label></div><label class="toggle">Gölge<input id="captionShadow" type="checkbox" checked></label>
+<label class="toggle">Arka plan kutusu<input id="captionBackground" type="checkbox"></label>
+<label class="toggle">Türkçe BÜYÜK HARF<input id="captionUppercase" type="checkbox"></label><label class="field"><span>Kutu koyuluğu <output id="bgAlphaOut"></output></span><input id="bgAlpha" type="range" min="0" max="95" value="62" step="5"></label></div><div class="panel"><div class="panel-heading"><h2>Yatay yazı ve animasyon</h2><span class="micro">CANLI ÖNİZLEME</span></div><div class="form-grid"><label class="field"><span>Yatay genişlik <output id="captionStretchOut"></output></span><input id="captionStretch" type="range" min="65" max="155" value="100" step="5"></label><label class="field"><span>Yatay eğim <output id="captionSkewOut"></output></span><input id="captionSkew" type="range" min="-25" max="25" value="0" step="1"></label><label class="field"><span>Döndürme <output id="captionRotateOut"></output></span><input id="captionRotate" type="range" min="-20" max="20" value="0" step="1"></label><label class="field"><span>Animasyon süresi <output id="captionAnimSpeedOut"></output></span><input id="captionAnimSpeed" type="range" min="0.15" max="1.5" value="0.4" step="0.05"></label></div><div class="anim-list">
+<button type="button" data-animation="pop">Pop</button>
+<button type="button" data-animation="fade">Fade</button>
+<button type="button" data-animation="rise">Slide</button>
+<button type="button" data-animation="glow">Glow</button>
+<button type="button" data-animation="none">Sabit</button></div>
+<button type="button" id="stylePreview" class="outline full">◉ Önizlemede dene</button>
+<p class="help" style="margin-top:12px">Yatay eğim ve animasyonlar canlı önizlemede gösterilir; kayıt sırasında Safari donanım kısıtları olabilir.</p></div></section><section class="page" data-page="layers" aria-label="layers"><div class="page-heading"><div class="small-label">04 / BAĞIMSIZ METİN KATMANLARI</div><h1>Ekstra <em>yazı ekle.</em></h1><p>Başlık, ayet numarası, açıklama veya dipnot ekle. Bunlar altyazıdan tamamen bağımsızdır.</p></div><div class="panel"><div class="panel-heading"><h2>Metin katmanları</h2><button id="addLayer" class="primary" type="button">+ Metin ekle</button></div><div id="layerList" class="layer-list"></div></div>
+<div class="panel" id="layerEditor" hidden><div class="panel-heading"><h2>Metni düzenle</h2><span class="micro">ZAMAN / KONUM / STİL</span></div>
+<label class="field"><span>Metin</span><textarea id="layerText" rows="3" maxlength="1200" placeholder="Örnek: Nahl Suresi · 16:61"></textarea></label>
+<div class="form-grid">
+<label class="field"><span>Başlangıç (sn)</span><input type="number" id="layerStart" min="0" step=".05" value="0"></label>
+<label class="field"><span>Bitiş (sn)</span><input type="number" id="layerEnd" min="0" step=".05" value="3"></label>
+<label class="field"><span>Yatay konum <output id="layerXOut"></output></span><input id="layerX" type="range" min="7" max="93" value="50" step="1"></label>
+<label class="field"><span>Dikey konum <output id="layerYOut"></output></span><input id="layerY" type="range" min="8" max="92" value="16" step="1"></label>
+</div>
+<label class="field"><span>Yazı karakteri</span><select id="layerFont"><option value="DM Sans">DM Sans</option><option value="Poppins">Poppins</option><option value="Montserrat">Montserrat</option><option value="Anton">Anton</option><option value="Bebas Neue">Bebas Neue</option><option value="Oswald">Oswald</option><option value="Georgia">Georgia</option><option value="Amiri">Amiri · Arapça</option><option value="Noto Sans Arabic">Noto Sans Arabic</option></select></label>
+<div class="form-grid">
+<label class="field"><span>Boyut <output id="layerSizeOut"></output></span><input id="layerSize" type="range" min="20" max="100" value="46" step="1"></label>
+<label class="field"><span>Yazı rengi</span><input type="color" id="layerColor" value="#ffffff"></label>
+<label class="field"><span>Kontur <output id="layerOutlineOut"></output></span><input id="layerOutline" type="range" min="0" max="10" value="2" step="1"></label>
+<label class="field"><span>Döndürme <output id="layerRotateOut"></output></span><input id="layerRotate" type="range" min="-30" max="30" value="0" step="1"></label>
+<label class="field"><span>Yatay genişlik <output id="layerStretchOut"></output></span><input id="layerStretch" type="range" min="65" max="155" value="100" step="5"></label>
+<label class="field"><span>Yatay eğim <output id="layerSkewOut"></output></span><input id="layerSkew" type="range" min="-25" max="25" value="0" step="1"></label>
+</div>
+<label class="field"><span>Animasyon</span><select id="layerAnimation"><option value="none">Sabit</option><option value="pop">Pop</option><option value="fade">Fade</option><option value="rise">Slide</option><option value="glow">Glow</option></select></label>
+<label class="toggle">Arka plan kutusu<input type="checkbox" id="layerBackground"></label>
+<div class="two-buttons"><button type="button" id="duplicateLayer" class="outline">⊞ Kopyala</button><button type="button" id="deleteLayer" class="danger">× Katmanı sil</button></div>
+<p class="help" style="margin-top:12px">Önizlemedeki yazıyı parmağınla sürükleyebilirsin.</p>
+</div></section><section class="page" data-page="export" aria-label="export"><div class="page-heading"><div class="small-label">05 / DOSYA VE VİDEO</div><h1>Videonu <em>kaydet.</em></h1><p>Dışa aktarma ayrı bir bölümde. Video kaydı başarısız olsa bile proje taslağın korunur.</p></div><div class="panel"><div class="panel-heading"><h2>Video kaydı</h2><span class="micro">SAFARİ BETA</span></div><label class="field"><span>Çıkış kalitesi</span><select id="exportQuality"><option value="smooth">720p · iPad için akıcı</option><option value="high">1080p · Yüksek kalite</option><option value="source">Kaynağa yakın · Deneysel</option></select></label><div id="exportDetails" class="file-info">Video seçildiğinde çıktı bilgileri görünür.</div>
+<div class="warning" style="margin:14px 0">Safari’de tarayıcı içi kayıt her zaman güvenilir değildir. Kayıt başlatıldıktan sonra ayrı bir durum göstergesi çalışır; takılmalarda iptal edip altyazılarını kaybetmeden dönebilirsin.</div>
+<div class="export-actions">
+<button type="button" class="primary full" id="startExport">↗ Videoyu kaydetmeyi dene</button>
+<button type="button" class="danger full" id="cancelExport" hidden>× Kaydı iptal et</button>
+<div class="progress"><span id="exportProgress"></span></div>
+<div id="exportStatus" class="notice-status" role="status" aria-live="polite">Kaydı buradan başlatabilirsin.</div>
+<button type="button" id="downloadExport" class="primary full" hidden>↓ Oluşturulan videoyu indir</button>
+<button type="button" id="shareExport" class="outline full" hidden>↗ Dosyalara Kaydet / Paylaş</button>
+</div></div><div class="panel"><div class="panel-heading"><h2>Yedek çıktılar</h2><span class="micro">DOSYA</span></div><div class="two-buttons"><button type="button" id="downloadSRT" class="outline">↓ SRT altyazı indir</button><button type="button" id="exportProject" class="outline">↓ Proje yedeği indir</button></div>
+<p class="help" style="margin-top:12px">JSON yedeği altyazı, stil ve ekstra metinleri saklar. Video dosyasını tekrar ekleyebilirsin.</p></div></section></div><aside class="preview-col"><div class="preview-card">
+<div class="preview-title"><span>● CANLI ÖNİZLEME</span><small id="previewInfo">Video yok</small></div>
+<div id="previewFrame" class="preview-frame">
+<video id="video" playsinline preload="metadata"></video>
+<div id="captionStage" class="caption-stage" hidden><span id="captionText"></span></div>
+<div id="layersStage" class="layers-stage"></div>
+<div id="previewEmpty" class="preview-empty"><div class="glyph">焱</div><b>Videon burada görünür</b><small>Video seç; metinleri önizlemede düzenle. Ekstra yazılar sürüklenebilir.</small></div>
+</div>
+<div class="transport"><button type="button" id="playPause" aria-label="Oynat/duraklat">▶</button>
+<span class="time" id="timeCur">00:00</span><input type="range" id="seek" min="0" max="1" value="0" step=".01">
+<span class="time" id="timeDur">00:00</span><button type="button" id="mute" aria-label="Ses aç/kapat">♫</button></div>
+<p class="preview-help">Altyazı ve ekstra metinler birbirinden bağımsız olarak zamanlanır.</p></div>
+<div class="footer-tip">焱 SubStudio v0.6 · Yerel taslak · Ayrı editör sayfaları</div></aside></main></div></body></html>
