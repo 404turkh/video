@@ -223,6 +223,13 @@
     <div class="dialog-icon">↗</div><h2>Videoyu dışa aktar</h2>
     <p>Altyazılar görüntünün içine işlenecek; orijinal video sesi korunmaya çalışılacak. Kayıt bitince iPad'de Dosyalara Kaydet / Paylaş düğmesini kullanabilirsin. Safari biçim desteği cihazına göre değişebilir.</p>
     <div class="export-summary" id="exportSummary"></div>
+    <label class="field-label" for="exportQuality">Video çıkış kalitesi</label>
+    <select class="control" id="exportQuality">
+      <option value="high" selected>1080p · Yüksek kalite (önerilen)</option>
+      <option value="smooth">720p · Akıcı / düşük yük</option>
+      <option value="source">Kaynağa yakın · Deneysel / yüksek yük</option>
+    </select>
+    <p class="muted small-copy">1080p yüksek kalite daha net görüntü sağlar. iPad donarsa 720p Akıcı seçeneğini dene. Uzun videolarda Safari belleği yetersiz kalabilir; bu yöntem henüz garantili değildir.</p>
     <button id="startExport" class="primary full" type="button">Kayıt işlemini başlat</button>
     <button id="stopExport" class="outline full" type="button" hidden>Kaydı durdur</button>
     <div class="ai-status" id="exportStatus" role="status" aria-live="polite"></div>
