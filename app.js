@@ -76,7 +76,7 @@ function syncTimeline(){
 }
 function renderCues(){
  updateSteps();const box=$('cueList');
- if(!cues.length){box.innerHTML='<div class="cue-empty">Henüz altyazı yok.<br>AI ile oluştur veya elle ilk satırı ekle.</div>';showCue(true);return}
+ if(!cues.length){box.innerHTML='<div class="cue-empty">Henüz altyazı yok.<br>Cihazında AI ile oluştur veya elle ilk satırı ekle.</div>';showCue(true);return}
  box.innerHTML=cues.map((cue,i)=>`<div class="cue-card" data-cue-id="${cue.id}">
  <div class="cue-card-top"><span>● SATIR ${String(i+1).padStart(2,'0')}</span><button class="remove-cue" data-delete="${cue.id}" title="Satırı sil" aria-label="Satırı sil">× SİL</button></div>
  <textarea class="cue-text" data-text="${cue.id}" rows="2" aria-label="Altyazı metni">${escapeHtml(cue.text)}</textarea>
@@ -102,7 +102,7 @@ function fileUpload(f){
  if(!f.type.startsWith('video/')&&!/\.(mp4|mov|webm|m4v)$/i.test(f.name)){notify('Lütfen geçerli bir video yükle.');return}
  if(objectURL)URL.revokeObjectURL(objectURL);
  file=f;objectURL=URL.createObjectURL(f);video.src=objectURL;video.load();cues=[];activeCueId=null;renderCues();
- $('emptyState').style.display='none';$('previewBadge').style.display='block';$('aiStatus').textContent='Video hazır. API ayarlıysa otomatik altyazı oluşturabilirsin.';
+ $('emptyState').style.display='none';$('previewBadge').style.display='block';$('aiStatus').textContent='Video hazır. API anahtarı olmadan cihazında otomatik altyazı deneyebilirsin.';
  $('videoMeta').textContent=`${f.name.length>22?f.name.slice(0,19)+'…':f.name} · ${(f.size/1024/1024).toFixed(1)} MB`;
  updateRatio();updateSteps();notify('Video yüklendi. Şimdi altyazı oluşturabilirsin.');
 }
@@ -135,25 +135,36 @@ function fillDemo(){const d=Number.isFinite(video.duration)?video.duration:16;
  cues=[{id:'demo-1',start:Math.min(.5,d*.05),end:Math.min(2.9,d*.28),text:'KENDİ HİKÂYENİ'},{id:'demo-2',start:Math.min(3,d*.29),end:Math.min(5.6,d*.58),text:'KENDİ TARZINLA ANLAT ✦'},{id:'demo-3',start:Math.min(5.8,d*.59),end:Math.min(8.2,Math.max(d,8.2)),text:'焱 SUBSTUDIO'}];
  renderCues();notify('Örnek altyazılar eklendi. Dilersen düzenleyebilirsin.')}
 function switchTab(name){document.querySelectorAll('.tab').forEach(el=>{el.classList.toggle('active',el.dataset.tab===name);el.setAttribute('aria-selected',String(el.dataset.tab===name))});document.querySelectorAll('.tab-panel').forEach(el=>el.classList.toggle('active',el.dataset.panel===name))}
-function normUrl(s){return String(s||'').trim().replace(/\/+$/,'')}
 async function transcribe(){
  if(!file){notify('Önce bir video seç.');return}
- const endpoint=normUrl($('workerUrl').value||localStorage.getItem('substudio-worker-url'));
- if(!endpoint){switchTab('settings');notify('Önce Ayarlar bölümünden Cloudflare Worker adresini gir.');return}
- try{const u=new URL(endpoint);if(!/^https?:$/.test(u.protocol))throw Error('Uygun olmayan API bağlantısı.');}catch{notify('Geçerli bir API bağlantısı gir.');return}
- if(file.size>25*1024*1024){notify('AI API bu sürümde en fazla 25 MB destekler. Videoyu küçült veya sesi ayrı yükle.');return}
- if(!/\.(mp4|webm|mp3|m4a|wav|mpeg|mpga)$/i.test(file.name)){notify('Otomatik altyazı için MP4 veya WebM yükle. MOV dosyasını önce MP4’e dönüştür.');return}
- const b=$('autoCaption');b.disabled=true;b.textContent='⌛ Konuşma analiz ediliyor…';$('aiStatus').textContent='Video güvenli API bağlantısına gönderiliyor. Bu işlem dosyanın uzunluğuna göre değişir.';
+ if(!window.SubStudioLocalAI){notify('Yerel AI modülü yüklenemedi. Sayfayı yenile.');return}
+ if(!hasVideo()){notify('Video henüz hazır değil, oynatılabildiğinden emin ol.');return}
+ if(Number.isFinite(video.duration)&&video.duration>90){notify('iPad denemesi için 90 saniyeden kısa bir video kullan.');return}
+ if(exporting){notify('Önce video dışa aktarımını bitir.');return}
+ const selectedFile=file;
+ const b=$('autoCaption');
+ b.disabled=true;
+ b.textContent='⌛ Cihazda analiz ediliyor…';
+ $('aiStatus').textContent='Ses videodan okunuyor. iPad’de bu işlem video süresi kadar sürebilir.';
  try{
-  const data=new FormData();data.append('file',file,file.name);
-  const response=await fetch(endpoint+'/transcribe',{method:'POST',body:data});
-  let payload;try{payload=await response.json()}catch{throw Error(`Sunucudan geçersiz yanıt (${response.status})`)}
-  if(!response.ok)throw Error(payload.error||`HTTP ${response.status}`);
-  if(!Array.isArray(payload.words)||!payload.words.length)throw Error('Konuşma bulunamadı veya zaman bilgileri boş.');
-  const made=groupWords(payload.words);if(!made.length)throw Error('Zamanlanmış altyazı oluşturulamadı.');
-  cues=made;renderCues();switchTab('captions');$('aiStatus').textContent=`✓ ${cues.length} altyazı oluşturuldu. Metinleri düzenleyebilirsin.`;
-  notify(`${cues.length} altyazı otomatik oluşturuldu!`);
- }catch(err){const message=err.message||'Bilinmeyen hata';$('aiStatus').textContent='Hata: '+message;notify('AI hatası: '+message)}finally{b.disabled=false;b.textContent='✦ Otomatik altyazı oluştur'}
+  const words=await window.SubStudioLocalAI.transcribe(selectedFile,{
+   language:$('localLanguage').value,
+   onStatus:message=>{if(file===selectedFile)$('aiStatus').textContent=message}
+  });
+  if(file!==selectedFile)throw Error('Video değişti, işlem iptal edildi. Yeni video için yeniden başlat.');
+  const made=groupWords(words);
+  if(!made.length)throw Error('Zamanlanmış altyazı oluşturulamadı.');
+  cues=made;renderCues();switchTab('captions');
+  $('aiStatus').textContent='✓ '+cues.length+' altyazı cihazında oluşturuldu. Metinleri kontrol edip düzenleyebilirsin.';
+  notify(cues.length+' altyazı oluşturuldu! API anahtarı kullanılmadı.');
+ }catch(err){
+  const message=String(err && err.message || 'Bilinmeyen hata');
+  $('aiStatus').textContent='Yerel AI hatası: '+message;
+  notify('Altyazı oluşturulamadı: '+message);
+ }finally{
+  b.disabled=false;
+  b.textContent='✦ API olmadan altyazı oluştur';
+ }
 }
 function fitCanvasSize(){
  const sourceW=video.videoWidth,sourceH=video.videoHeight;let w=sourceW,h=sourceH;
@@ -248,8 +259,6 @@ function wireEvents(){
  const attrs=[['fontSelect','font'],['fontSize','size'],['strokeSize','stroke'],['textColor','color'],['strokeColor','strokeColor'],['position','bottom'],['ratioSelect','ratio'],['backgroundToggle','background'],['shadowToggle','shadow']];
  attrs.forEach(([id,key])=>$(id).addEventListener('input',e=>{style[key]=e.target.type==='checkbox'?e.target.checked:e.target.type==='range'?Number(e.target.value):e.target.value;selectedPreset='';updateSettings()}));
  $('autoCaption').addEventListener('click',transcribe);
- $('workerUrl').value=localStorage.getItem('substudio-worker-url')||'';
- $('saveEndpoint').addEventListener('click',()=>{const url=normUrl($('workerUrl').value);if(url&&!/^https:\/\//.test(url)){notify('https:// ile başlayan bir Worker adresi gir.');return}localStorage.setItem('substudio-worker-url',url);notify('Worker adresi kaydedildi.')});
  $('addCue').addEventListener('click',()=>{const start=video.currentTime||0;addCue(start,start+2,'Yeni altyazı');setTimeout(()=>{$('cueList').lastElementChild?.scrollIntoView({block:'nearest'})},50)});
  $('sampleCaptions').addEventListener('click',()=>{fillDemo();switchTab('captions')});
  $('downloadSRT').addEventListener('click',downloadSRT);$('quickSRT').addEventListener('click',downloadSRT);
