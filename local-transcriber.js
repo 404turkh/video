@@ -3,11 +3,11 @@
 (() => {
   'use strict';
 
-  const MODEL_ID = 'Xenova/whisper-tiny';
+  const MODELS = { accurate: 'Xenova/whisper-base', fast: 'Xenova/whisper-tiny' };
   const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
   const MAX_SECONDS = 90;
   const MAX_FILE_BYTES = 120 * 1024 * 1024;
-  let modelPromise = null;
+  const modelCache = new Map();
   let graph = null;
 
   function getAudioGraph(element) {
@@ -174,34 +174,36 @@
     return result;
   }
 
-  async function loadModel(report) {
-    if (!modelPromise) {
-      modelPromise = (async () => {
-        report('2/3 · AI modeli indiriliyor. İlk açılışta 80 MB veya daha fazla veri indirilebilir…');
+  async function loadModel(report, modelChoice = 'accurate') {
+    const selected = Object.prototype.hasOwnProperty.call(MODELS, modelChoice) ? modelChoice : 'accurate';
+    if (!modelCache.has(selected)) {
+      const pending = (async () => {
+        report('2/3 · ' + (selected === 'accurate' ? 'Daha doğru Whisper Base' : 'Hızlı Whisper Tiny') + ' modeli indiriliyor. İlk kullanımda internet ve boş bellek gerekir…');
         let lib;
         try { lib = await import(TRANSFORMERS_URL); }
         catch (err) {
-          throw new Error('AI kütüphanesi yüklenemedi (internet/CDN). ' + String(err?.message || err));
+          throw new Error('AI kütüphanesi indirilemedi: ' + String(err?.message || err));
         }
         const { pipeline, env } = lib;
         env.allowLocalModels = false;
         if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.numThreads = 1;
         try {
-          return await pipeline('automatic-speech-recognition', MODEL_ID, {
-            device: 'wasm',
-            dtype: 'q8',
+          return await pipeline('automatic-speech-recognition', MODELS[selected], {
+            device: 'wasm', dtype: 'q8',
             progress_callback: evt => {
               if (evt?.status === 'progress' && Number.isFinite(evt.progress)) {
-                report('2/3 · AI modeli indiriliyor: %' + Math.round(evt.progress));
+                report('2/3 · Model dosyası indiriliyor: %' + Math.round(evt.progress));
               }
             }
           });
         } catch (err) {
-          throw new Error('AI modeli açılmadı. Safari belleği veya ağ sorunu olabilir: ' + String(err?.message || err));
+          throw new Error('Model açılamadı. iPad belleği yetersizse Ayarlar > Hızlı / düşük bellek modelini dene. Ayrıntı: ' + String(err?.message || err));
         }
-      })().catch(error => { modelPromise = null; throw error; });
+      })();
+      modelCache.set(selected, pending);
+      pending.catch(() => { if (modelCache.get(selected) === pending) modelCache.delete(selected); });
     }
-    return modelPromise;
+    return modelCache.get(selected);
   }
 
   function normalizeResult(response) {
@@ -217,13 +219,13 @@
   async function transcribe(file, options = {}) {
     const report = typeof options.onStatus === 'function' ? options.onStatus : () => {};
     const audio = await captureAudio(file, options.videoElement, report);
-    const pipe = await loadModel(report);
+    const pipe = await loadModel(report, options.model || 'accurate');
     report('3/3 · Konuşma cihazında tanınıyor. Safari sekmesini açık tut…');
-    const config = { task: 'transcribe', return_timestamps: 'word',
-      chunk_length_s: 30, stride_length_s: 5 };
-    if (options.language && options.language !== 'auto') {
-      config.language = options.language;
-    }
+    const language = options.language && options.language !== 'auto' ? options.language : 'turkish';
+    // Whisper must TRANSCRIBE, never TRANSLATE to English.
+    // Explicit language avoids unreliable short-clip language auto-detection.
+    const config = { task: 'transcribe', language,
+      return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5 };
     let response;
     try {
       response = await pipe(audio, config);
