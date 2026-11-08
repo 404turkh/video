@@ -9,9 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Anton&family=Bebas+Neue&family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=0.4" />
+  <link rel="stylesheet" href="./styles.css?v=0.5" />
   <script src="./local-transcriber.js?v=0.4" defer></script>
-  <script src="./app.js?v=0.4" defer></script>
+  <script src="./subtitle-timing.js?v=0.5" defer></script>
+  <script src="./app.js?v=0.5" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +20,7 @@
       <a class="brand" href="#" aria-label="SubStudio ana sayfa">
         <span class="brand-mark">焱</span>
         <span class="brand-name">Sub<span>Studio</span></span>
-        <span class="version">BETA 0.4</span>
+        <span class="version">BETA 0.5</span>
       </a>
       <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
       <div class="top-actions">
@@ -83,6 +84,18 @@
               <button type="button" aria-label="Pembe yazı" title="Pembe" data-text-color="#ff7cb2" style="--swatch:#ff7cb2"></button>
               <button type="button" aria-label="Mor yazı" title="Mor" data-text-color="#c9b6ff" style="--swatch:#c9b6ff"></button>
             </div>
+            <div class="divider"></div>
+            <div class="section-header"><h2>Yatay yazı şekli</h2><span>GENİŞLİK / EĞİM</span></div>
+            <p class="muted small-copy">Yazıyı yatay olarak genişlet, daralt veya eğ. Video yönünü değiştirmez; yalnızca altyazıyı dönüştürür.</p>
+            <label class="field-label" for="horizontalScale">Yatay genişlik <output id="horizontalScaleValue">%100</output></label>
+            <input id="horizontalScale" type="range" min="70" max="150" step="5" value="100" />
+            <div class="split-field">
+              <div><label class="field-label" for="skewX">Yatay eğim <output id="skewXValue">0°</output></label>
+                <input id="skewX" type="range" min="-20" max="20" step="1" value="0" /></div>
+              <div><label class="field-label" for="rotateText">Döndürme <output id="rotateTextValue">0°</output></label>
+                <input id="rotateText" type="range" min="-15" max="15" step="1" value="0" /></div>
+            </div>
+            <div class="divider"></div>
             <div class="split-field">
               <div><label class="field-label" for="fontSize">Boyut <output id="fontSizeValue">58 px</output></label><input id="fontSize" type="range" min="24" max="110" step="1" value="58" /></div>
               <div><label class="field-label" for="strokeSize">Kontur <output id="strokeValue">4 px</output></label><input id="strokeSize" type="range" min="0" max="12" step="1" value="4" /></div>
@@ -123,7 +136,18 @@
           </section>
           <section class="tab-panel" data-panel="captions">
             <div class="section-header"><h2>Altyazı zaman çizelgesi</h2><span id="cueCount">0 SATIR</span></div>
-            <p class="muted small-copy">Satırları ve başlangıç/bitiş saniyelerini değiştir. Satıra dokununca video o ana gider.</p>
+            <p class="muted small-copy">AI kelime zamanlarını kullanıp cümleleri bölüyor. Konuşma tanıma hataları yine elle düzeltilmelidir.</p>
+            <div class="smart-reflow">
+              <label class="field-label" for="captionDensity">Altyazı uzunluğu</label>
+              <select id="captionDensity" class="control">
+                <option value="short">Kısa · 1 satır (hızlı videolar)</option>
+                <option value="balanced" selected>Dengeli · 1–2 satır</option>
+                <option value="long">Geniş · 2 satır</option>
+              </select>
+              <button type="button" class="primary full" id="smartReflow">✦ Akıllı böl ve zamanla</button>
+              <button type="button" class="outline full" id="undoSmartReflow" hidden>↶ Son düzeltmeyi geri al</button>
+              <div class="smart-reflow-status" id="timingStatus" role="status" aria-live="polite">AI altyazısı oluşturduğunda cümleleri buradan yeniden düzenleyebilirsin.</div>
+            </div>
             <div class="caption-list" id="cueList"></div>
             <button class="outline full" type="button" id="addCue">+ Yeni altyazı ekle</button>
           </section>
@@ -212,7 +236,7 @@
             <div class="privacy-note">⌁ Videon ve sesi tarayıcıda kalır. AI modeli ilk seferde indirilir; harici API anahtarı gerekmez.</div>
           </div>
         </div>
-        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.4 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
+        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.5 BETA <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
       </section>
     </main>
   </div>
