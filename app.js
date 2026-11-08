@@ -253,29 +253,30 @@ async function exportVideo(){
  resetExportSave();
  exportStopByUser=false;
  exporting=true;
- let audioDest=null, ctx=null, exportTimer=null, ended=null, wasMuted=video.muted, recorderError=null;
+ let audioDest=null, ctx=null, exportTimer=null, ended=null, wasMuted=video.muted, recorderError=null, videoFrameCallbackId=null, stallCheck=null, drawnFrames=0;
  let chunks=[], resumedAudio=Promise.resolve();
  $('startExport').hidden=true;
  $('stopExport').hidden=false;
  $('exportStatus').textContent='Kayıt başlatılıyor… iPad ekranını kapatma.';
  try{
-  const dims=fitCanvasSize();
-  // iPad Safari: reduce memory + encoder overload for large vertical videos.
-  const touchMac=/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1;
-  const mobileSafari=/iPad|iPhone|iPod/.test(navigator.userAgent)||touchMac;
-  const shrink=mobileSafari?Math.min(1,1280/Math.max(dims.w,dims.h)):1;
-  const width=Math.max(2,Math.floor(dims.w*shrink/2)*2);
-  const height=Math.max(2,Math.floor(dims.h*shrink/2)*2);
+  const profile={
+   high:{long:1920,short:1080,fps:30,bitrate:9000000},
+   smooth:{long:1280,short:720,fps:24,bitrate:4200000},
+   source:{long:3840,short:2160,fps:30,bitrate:16000000}
+  }[$('exportQuality').value]||{long:1920,short:1080,fps:30,bitrate:9000000};
+  const dims=fitCanvasSize(profile.long,profile.short);
+  const width=dims.w,height=dims.h;
   const canvas=document.createElement('canvas');
   canvas.width=width;canvas.height=height;
   ctx=canvas.getContext('2d',{alpha:false});
   if(!ctx)throw Error('Canvas açılamadı.');
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   video.pause();
   video.currentTime=0;
   video.muted=false;
   try { drawExportFrame(ctx,width,height,0) }
   catch { ctx.fillStyle='#121216';ctx.fillRect(0,0,width,height) }
-  exportStream=canvas.captureStream(25);
+  exportStream=canvas.captureStream(profile.fps);
   if(!exportStream?.getVideoTracks()?.length)throw Error('Canvas video kanalı oluşturulamadı.');
 
   const AC=window.AudioContext||window.webkitAudioContext;
@@ -297,7 +298,7 @@ async function exportVideo(){
   }
 
   const mime=chooseMime();
-  const recorderOptions=mime?{mimeType:mime,videoBitsPerSecond:2500000}: {videoBitsPerSecond:2500000};
+  const recorderOptions=mime?{mimeType:mime,videoBitsPerSecond:profile.bitrate,audioBitsPerSecond:192000}: {videoBitsPerSecond:profile.bitrate,audioBitsPerSecond:192000};
   recording=new MediaRecorder(exportStream,recorderOptions);
   const outputType=recording.mimeType||mime||'video/mp4';
   const completion=new Promise((resolve,reject)=>{
