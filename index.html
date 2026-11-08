@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#101015" />
+  <meta name="description" content="焱 SubStudio — Videolar için otomatik ve animasyonlu altyazı editörü." />
+  <title>焱 SubStudio — Altyazı Editörü</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="SubStudio ana sayfa">
+        <span class="brand-mark">焱</span>
+        <span class="brand-name">Sub<span>Studio</span></span>
+        <span class="version">BETA 0.1</span>
+      </a>
+      <div class="top-center"><span class="live-dot"></span> Yaratıcı altyazı stüdyosu</div>
+      <div class="top-actions">
+        <button class="ghost small" id="newProject" type="button"><span>↻</span> <span class="desktop-only">Yeni proje</span></button>
+        <button class="primary small" id="exportVideoTop" type="button">↗ <span>Videoyu dışa aktar</span></button>
+      </div>
+    </header>
+    <main class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="eyebrow">WORKSPACE / 01</div>
+          <h1>Altyazı <em>tasarla.</em></h1>
+          <p>Sesi algıla, kelimeleri düzenle, kendi tarzını videoya taşı.</p>
+        </div>
+        <div class="tabbar" role="tablist" aria-label="Düzenleme araçları">
+          <button class="tab active" role="tab" aria-selected="true" data-tab="style">✦ Stil</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="captions">☷ Altyazılar</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="settings">⚙ Ayarlar</button>
+        </div>
+        <div class="sidebar-scroll">
+          <section class="tab-panel active" data-panel="style">
+            <div class="section-header"><h2>Hazır tasarımlar</h2><span>6 STİL</span></div>
+            <div class="preset-grid" id="presetGrid">
+              <button class="preset selected" data-preset="ember" type="button"><span class="preset-sample ember">PARLA</span><small>Ember</small></button>
+              <button class="preset" data-preset="clean" type="button"><span class="preset-sample clean">Minimal</span><small>Clean</small></button>
+              <button class="preset" data-preset="neon" type="button"><span class="preset-sample neon">NEON</span><small>Neon</small></button>
+              <button class="preset" data-preset="cinema" type="button"><span class="preset-sample cinema">Cinema</span><small>Cinema</small></button>
+              <button class="preset" data-preset="pop" type="button"><span class="preset-sample pop">POP!</span><small>Pop Art</small></button>
+              <button class="preset" data-preset="verse" type="button"><span class="preset-sample verse">السَّلَامُ</span><small>Verse</small></button>
+            </div>
+            <div class="divider"></div>
+            <div class="section-header"><h2>Tipografi</h2><span>ÖZELLEŞTİR</span></div>
+            <label class="field-label" for="fontSelect">Yazı karakteri</label>
+            <select class="control" id="fontSelect">
+              <option value="'DM Sans',Arial,sans-serif">DM Sans — Modern</option>
+              <option value="'Space Grotesk',Arial,sans-serif">Space Grotesk — Bold</option>
+              <option value="Impact,'Arial Black',sans-serif">Impact — Büyük</option>
+              <option value="Georgia,serif">Georgia — Klasik</option>
+              <option value="'Amiri',Georgia,serif">Amiri — Arapça / Kur’an</option>
+              <option value="Arial,sans-serif">Arial — Sade</option>
+            </select>
+            <div class="split-field">
+              <div><label class="field-label" for="fontSize">Boyut <output id="fontSizeValue">58 px</output></label><input id="fontSize" type="range" min="24" max="110" step="1" value="58" /></div>
+              <div><label class="field-label" for="strokeSize">Kontur <output id="strokeValue">4 px</output></label><input id="strokeSize" type="range" min="0" max="12" step="1" value="4" /></div>
+            </div>
+            <div class="split-field">
+              <div><label class="field-label" for="textColor">Yazı rengi</label><div class="color-box"><input id="textColor" type="color" value="#ffffff" /><span>Metin</span></div></div>
+              <div><label class="field-label" for="strokeColor">Çizgi rengi</label><div class="color-box"><input id="strokeColor" type="color" value="#17131b" /><span>Çerçeve</span></div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="section-header"><h2>Animasyon</h2><span>HAREKET</span></div>
+            <div class="animation-grid" id="animationGrid">
+              <button type="button" class="animation selected" data-animation="pop">◉<small>Pop</small></button>
+              <button type="button" class="animation" data-animation="fade">◌<small>Fade</small></button>
+              <button type="button" class="animation" data-animation="slide">↑<small>Slide</small></button>
+              <button type="button" class="animation" data-animation="glow">✦<small>Glow</small></button>
+              <button type="button" class="animation" data-animation="none">−<small>Sabit</small></button>
+            </div>
+            <label class="field-label" for="position">Altyazı konumu <output id="positionValue">Alt · %18</output></label>
+            <input id="position" type="range" min="6" max="68" value="18" />
+            <label class="toggle-line"><span>Metin arka planı</span><input id="backgroundToggle" type="checkbox" /><i></i></label>
+            <label class="toggle-line"><span>Yazı gölgesi</span><input id="shadowToggle" type="checkbox" checked /><i></i></label>
+          </section>
+          <section class="tab-panel" data-panel="captions">
+            <div class="section-header"><h2>Altyazı zaman çizelgesi</h2><span id="cueCount">0 SATIR</span></div>
+            <p class="muted small-copy">Satırları ve başlangıç/bitiş saniyelerini değiştir. Satıra dokununca video o ana gider.</p>
+            <div class="caption-list" id="cueList"></div>
+            <button class="outline full" type="button" id="addCue">+ Yeni altyazı ekle</button>
+          </section>
+          <section class="tab-panel" data-panel="settings">
+            <div class="section-header"><h2>Video çerçevesi</h2><span>FORMAT</span></div>
+            <label for="ratioSelect" class="field-label">Görüntü oranı</label>
+            <select class="control" id="ratioSelect">
+              <option value="original">Orijinal</option>
+              <option value="9:16">9:16 — Reels / TikTok</option>
+              <option value="1:1">1:1 — Kare</option>
+              <option value="16:9">16:9 — YouTube</option>
+            </select>
+            <div class="divider"></div>
+            <div class="section-header"><h2>Otomatik altyazı API</h2></div>
+            <p class="muted small-copy">Cloudflare Worker adresini gir. API anahtarını buraya yazma; Worker’ın gizli değişkenlerinde tutulur.</p>
+            <label for="workerUrl" class="field-label">Worker API adresi</label>
+            <input class="control" id="workerUrl" type="url" placeholder="https://sub-api.example.workers.dev" autocomplete="off" />
+            <button id="saveEndpoint" type="button" class="outline full">API adresini kaydet</button>
+            <p class="muted small-copy">İlk sürümde otomatik zamanlama Whisper-1 ile yapılır. Bu modelin sonlandırılması planlandığı için daha sonra güncellenecek.</p>
+            <div class="divider"></div>
+            <div class="section-header"><h2>Altyazı dosyaları</h2></div>
+            <button id="downloadSRT" class="outline full" type="button">↓ SRT altyazısını indir</button>
+            <button id="uploadSRTButton" class="outline full" type="button">↑ SRT dosyası yükle</button>
+            <input id="srtInput" type="file" accept=".srt,text/plain" hidden />
+          </section>
+        </div>
+        <div class="sidebar-foot"><span class="status-indicator"></span><span>焱 SubStudio · Tarayıcı editörü</span></div>
+      </aside>
+      <section class="stage-area">
+        <div class="stage-top">
+          <div><div class="eyebrow">CANLI ÖNİZLEME</div><h2>Senin videon. <span>Senin stilin.</span></h2></div>
+          <div class="top-tools"><span id="videoMeta">Henüz video yok</span><button class="outline" id="changeVideo" type="button">↑ Video yükle</button></div>
+        </div>
+        <div class="stage-content">
+          <div class="preview-shell">
+            <div class="preview-window" id="previewWindow" style="aspect-ratio:9/16">
+              <video id="video" playsinline preload="metadata" crossorigin="anonymous"></video>
+              <div class="video-vignette"></div>
+              <div id="subtitlePreview" class="subtitle-preview"><span id="subtitleText"></span></div>
+              <div id="emptyState" class="empty-state">
+                <div class="empty-glow"><span>焱</span></div>
+                <div class="upload-title">Burada başlıyor.</div>
+                <p>Videonu yükle, etkileyici altyazılar oluştur.</p>
+                <button type="button" id="emptyUpload" class="primary">↑ Video seç</button>
+                <small>MP4 / WebM · Yerel önizleme</small>
+              </div>
+              <div id="previewBadge" class="preview-badge">● ÖNİZLEME</div>
+            </div>
+            <div class="transport">
+              <button class="transport-play" id="playPause" type="button" aria-label="Oynat veya duraklat">▶</button>
+              <span id="timeCurrent">00:00</span>
+              <input id="seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Video konumu" />
+              <span id="timeTotal">00:00</span>
+              <button id="muteButton" type="button" class="transport-mute" aria-label="Sesi aç veya kapat">♫</button>
+            </div>
+            <div class="preview-hint">✧ Yazı ve animasyon değişiklikleri önizlemeye anında uygulanır.</div>
+          </div>
+          <div class="quick-panel">
+            <div class="panel-eyebrow">YAPAY ZEKÂ</div>
+            <div class="ai-icon">✧</div>
+            <h3>Tek tıkla<br /><em>altyazı üret.</em></h3>
+            <p>Videodaki konuşmayı otomatik yazıya çevir ve kelimeleri zamanlamayla yerleştir.</p>
+            <button type="button" class="primary full" id="autoCaption">✦ Otomatik altyazı oluştur</button>
+            <div class="ai-status" id="aiStatus">Video seçtikten sonra kullanabilirsin.</div>
+            <div class="divider"></div>
+            <div class="quick-heading">İş akışı</div>
+            <div class="step"><b>01</b><span>Videonu yükle</span><i id="stepVideo">○</i></div>
+            <div class="step"><b>02</b><span>Altyazıyı oluştur</span><i id="stepCues">○</i></div>
+            <div class="step"><b>03</b><span>Stilini belirle</span><i>✓</i></div>
+            <div class="step"><b>04</b><span>Videonu kaydet</span><i>↗</i></div>
+            <div class="divider"></div>
+            <div class="quick-heading">Hızlı işlemler</div>
+            <button type="button" id="sampleCaptions" class="quick-action">＋ Örnek altyazı ekle <span>›</span></button>
+            <button type="button" id="quickSRT" class="quick-action">↓ SRT olarak kaydet <span>›</span></button>
+            <div class="privacy-note">⌁ Videon önizleme sırasında cihazında kalır. AI özelliğini kullanırsan dosyan transkripsiyon servisine iletilir.</div>
+          </div>
+        </div>
+        <div class="bottom-strip"><span class="strip-dot"></span> VERSİYON 0.1 <span class="strip-line"></span> ALT YAZI TASARIMI / OTOMATİK ZAMANLAMA / VİDEO DIŞA AKTARIMI <span class="strip-line"></span> MADE WITH 焱</div>
+      </section>
+    </main>
+  </div>
+  <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,video/*" hidden />
+  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+  <dialog id="exportDialog">
+    <form method="dialog"><button class="dialog-close" aria-label="Kapat">×</button></form>
+    <div class="dialog-icon">↗</div><h2>Videoyu dışa aktar</h2>
+    <p>Altyazılar görüntünün içine işlenecek; orijinal video sesi korunmaya çalışılacak. Tarayıcı içi kayıt gerçek zamanlıdır ve iPad Safari'de biçim desteği değişebilir.</p>
+    <div class="export-summary" id="exportSummary"></div>
+    <button id="startExport" class="primary full" type="button">Kayıt işlemini başlat</button>
+    <button id="stopExport" class="outline full" type="button" hidden>Kaydı durdur</button>
+    <div class="ai-status" id="exportStatus"></div>
+  </dialog>
+</body>
+</html>
