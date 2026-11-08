@@ -309,31 +309,48 @@ async function exportVideo(){
     reject(recorderError);
    },{once:true});
   });
-  let lastShown=-1;
-  const tick=()=>{
-   if(!exporting)return;
+  let lastShown=-1,lastMediaTime=-1,lastFrameAt=performance.now();
+  const drawNewFrame=t=>{
+   if(!exporting||recording?.state!=='recording')return;
    try{
-    if(video.readyState>=2)drawExportFrame(ctx,width,height,video.currentTime||0);
+    if(video.readyState>=2&&t>lastMediaTime+.005){
+     drawExportFrame(ctx,width,height,t);
+     lastMediaTime=t;lastFrameAt=performance.now();drawnFrames++;
+    }
     const n=Math.floor(video.currentTime||0);
     if(n!==lastShown){
      lastShown=n;
-     $('exportStatus').textContent='Video kaydediliyor: '+timeString(n)+' / '+timeString(video.duration)+' — işlem bitince Kaydet düğmesi çıkacak.';
+     $('exportStatus').textContent='Kaydediliyor · '+timeString(n)+' / '+timeString(video.duration)+' · '+width+'×'+height+' · '+drawnFrames+' kare';
     }
-   }catch(err){
-    recorderError=err;
-    if(recording?.state==='recording')recording.stop();
-    return;
-   }
-   if(video.ended&&recording?.state==='recording'){recording.stop();return}
-   drawFrameId=requestAnimationFrame(tick);
+   }catch(err){recorderError=err;if(recording?.state==='recording')recording.stop()}
   };
+  if(typeof video.requestVideoFrameCallback==='function'){
+   const onFrame=(_now,meta)=>{
+    if(!exporting||recording?.state!=='recording')return;
+    drawNewFrame(meta?.mediaTime??video.currentTime);
+    if(exporting&&recording?.state==='recording')videoFrameCallbackId=video.requestVideoFrameCallback(onFrame);
+   };
+   videoFrameCallbackId=video.requestVideoFrameCallback(onFrame);
+  }else{
+   const tick=()=>{
+    if(!exporting||recording?.state!=='recording')return;
+    drawNewFrame(video.currentTime||0);
+    drawFrameId=requestAnimationFrame(tick);
+   };
+   drawFrameId=requestAnimationFrame(tick);
+  }
   ended=()=>{if(recording?.state==='recording')recording.stop()};
   video.addEventListener('ended',ended,{once:true});
   recording.start(1000);
-  tick();
   // Crucial: play() executes in the tap's user activation (no awaited calls above).
   const playPromise=video.play();
   await Promise.all([resumedAudio,playPromise]);
+  stallCheck=setInterval(()=>{
+   if(recording?.state==='recording'&&!video.ended&&!video.paused&&performance.now()-lastFrameAt>7000){
+    recorderError=Error('Video dondu. 720p Akıcı seçeneğiyle yeniden dene veya daha kısa video yükle.');
+    recording.stop();
+   }
+  },1500);
   exportTimer=setTimeout(()=>{
    if(recording?.state==='recording'){
     recorderError=Error('Kayıt zaman aşımı. Daha kısa bir video dene.');
@@ -342,6 +359,9 @@ async function exportVideo(){
   },Math.min(480000,(video.duration+35)*1000));
 
   await completion;
+  if(!exportStopByUser&&drawnFrames<Math.min(12,Math.ceil(video.duration*2))){
+   throw Error('Video kareleri yeterince işlenemedi. Donmuş kayıt kaydedilmedi; 720p Akıcı seçeneğini dene.');
+  }
   const bytes=chunks.reduce((sum,item)=>sum+item.size,0);
   if(bytes<1024)throw Error('Safari video verisi üretmedi. MP4/H.264 ile yeniden dene.');
   const type=outputType.includes('webm')?'video/webm':'video/mp4';
@@ -357,8 +377,9 @@ async function exportVideo(){
   $('exportStatus').textContent='Video kaydedilemedi: '+message;
   notify('Video dışa aktarılamadı: '+message);
  }finally{
-  clearTimeout(exportTimer);
+  clearTimeout(exportTimer);clearInterval(stallCheck);
   exporting=false;
+  if(videoFrameCallbackId!==null&&typeof video.cancelVideoFrameCallback==='function')video.cancelVideoFrameCallback(videoFrameCallbackId);
   cancelAnimationFrame(drawFrameId);
   if(ended)video.removeEventListener('ended',ended);
   if(audioSource&&audioDest)try{audioSource.disconnect(audioDest)}catch{}
