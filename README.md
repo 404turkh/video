@@ -1,33 +1,43 @@
-# 焱 SubStudio — v0.4 Beta
+# 焱 SubStudio — v0.5 Beta
 
-Tarayıcıda video yükleme, AI destekli altyazı oluşturma ve animasyonlu yazı tasarımı.
+API anahtarı istemeden tarayıcıda çalışan video ve altyazı editörü.
 
-## AI altyazıyı düzenleme
+## Yeni: Cümleleri konuşmaya göre ayarlama
 
-- **Stil** sekmesindeki font seçimi artık genişletildi: DM Sans, Poppins, Montserrat, Oswald, Anton, Bebas Neue, Space Grotesk, Impact, Georgia, Amiri, Noto Sans Arabic ve Arial.
-- AI altyazısı oluşturulduğunda Stil sekmesi otomatik açılır. Sağdaki **Oluşturulan altyazıyı tasarla** düğmesi de aynı bölüme götürür.
-- Kalınlık, harf aralığı, yazı rengi, kontur, gölge, konum, sağ/orta/sol hizalama, arka plan koyuluğu, animasyon tipi ve hızı ayarlanabilir.
-- Türkçe büyük harf seçeneği (`i → İ`), örnek altyazı önizlemesi, stili sıfırlama ve aynı cihazda tercihleri hatırlama eklendi.
-- Değişiklikler canlı önizlemede ve desteklenen tarayıcılarda video kayıt çiziminde kullanılır. Modelin ürettiği kelimeleri **Altyazılar** sekmesinden elle düzeltebilirsin.
+Önce video yükle, **API olmadan altyazı oluştur** düğmesine bas. AI'nın verdiği kelime zamanları üzerinden yeni **Akıllı Altyazı** motoru, duraklamalara ve noktalama işaretlerine göre daha kısa ve okunabilir satırlar oluşturmaya çalışır. Otomatik işlem `subtitle-timing.js` dosyasındadır.
 
-## Video çıkış kalitesi
+**Altyazılar** sekmesinde:
+- **Kısa (tek satır)**, **Dengeli (1–2 satır)** ve **Geniş (2 satır)** yoğunluk seçenekleri
+- **Akıllı böl ve zamanla**: Son AI kelime zamanlarıyla altyazıları yeniden oluşturur
+- **Geri al**: Son akıllı yeniden bölme işleminden önceki satırları geri yükler
+- Her satır için **Böl**, **Birleştir**, **0,1 saniye ileri/geri**, **Başlangıç −0,1**, **Bitiş +0,1**
+- Her satırda manuel metin ve başlangıç/bitiş zamanı düzenleme
 
-Eski sürümde iPad çıkışı 1280 piksel uzun kenara, 2.5 Mbps bit hızına ve 25 FPS'e kısıtlanıyordu. Bu yüzden çözünürlük/ayrıntı kaybı belirgin olabiliyordu.
+Önceden el ile değiştirilen metinler, AI kelimelerinden yeniden oluşturma sırasında kaybolabileceği için kullanıcıya onay sorulur.
 
-- **1080p · Yüksek kalite (önerilen)** — 1920 uzun kenar/1080 kısa kenar sınırı, hedef 30 FPS, 9 Mbps video bit hızı.
-- **720p · Akıcı / düşük yük** — 1280/720 sınırı, hedef 24 FPS, 4.2 Mbps.
-- **Kaynağa yakın · Deneysel** — 3840/2160'a kadar, hedef 30 FPS, 16 Mbps (iPad'de bellek/işlemci yükü yüksek).
-- Gerçek çıktı kalitesi ve kare hızı tarayıcının kaydedicisine bağlıdır; belirtilen bit hızları hedef değerdir, garanti değildir.
-- Kare çiziminde `requestVideoFrameCallback` (desteklenirse), diğer tarayıcılarda `requestAnimationFrame` kullanılır.
-- 7 saniyelik kare ilerleme durması algılanır; kare sayısı yetersizse donmuş videoyu başarılı kayıt diye sunmak yerine hata verilir.
-- Oluşan video iPad'de **Dosyalara Kaydet / Paylaş** veya **Videoyu indir** düğmesiyle kaydedilir.
+### Zamanlama doğruluğunun sınırları
+Bu yeni özellik **sesi yeniden tanıyıp kelimeleri kesin biçimde hizalamaz**: Whisper'ın sağladığı kelime zamanlarını kullanır. Whisper bazen kelimeleri yanlış algılayabilir ya da zamanını kaydırabilir. Yalnızca cümle düzeyinde zaman alınırsa, parça içindeki kelime süreleri yazı uzunluğuna göre **tahmini** hesaplanır ve satırda işaretlenir. Dışa aktarmadan önce video sesini dinleyerek kontrol etmek gerekir. Otomatik %100 doğruluk garantisi yoktur.
 
-**Önemli:** Bu hâlâ tarayıcıda gerçek zamanlı kayıt yapan bir beta sürümdür. iPad Safari'de gerçek cihazla doğrulanmış değildir; video/ses donması tamamen ortadan kalkmış sayılmaz. Güvenilir ve kesintisiz yüksek kalite MP4 için ileride sunucuda FFmpeg tabanlı bir işleme kuyruğu planlanmalıdır. Bazı cihazlarda 720p seçmek daha iyi sonuç verir.
+## Yeni: Yatay yazı biçimi
 
-## Otomatik Türkçe transkripsiyon
+**Stil → Yatay yazı şekli**:
+- **Yatay genişlik**: %70–150
+- **Yatay eğim**: −20° / +20°
+- **Döndürme**: −15° / +15°
 
-Whisper Base (varsayılan) / Tiny (hafif) modeli tarayıcıda çalışır. `language=turkish` ve `task=transcribe` ile Türkçe konuşmayı Türkçe olarak yazdırma hedeflenir. Ses/video otomatik AI için sunucuya gönderilmez; model ilk kullanımda indirilir. Transkripsiyon hatalı olabilir.
+Önizlemede CSS transform, videoya kayıt sırasında Canvas dönüşümü uygulanır. Stil kontrolleri ve önceki hazır font/animasyonlar korunur; ayarlar cihazda saklanır.
 
-## Barındırma
+## Önceki özellikler
 
-Vercel veya GitHub Pages'te statik olarak yayınlanabilir. Build komutu gerekmez. `worker.js` ve `wrangler.toml` önceki sürümden kalan, şu anki yerel AI akışında kullanılmayan isteğe bağlı örneklerdir.
+- iPad Safari üzerinde cihazda Whisper Base/Tiny ile Türkçe konuşma tanıma; API anahtarı kullanılmaz. İlk kullanımda model indirilir.
+- AI metni tek başına yüksek doğruluk garantisi vermez.
+- MP4/WebM yükleme, SRT içe/dışa aktarma, canlı önizleme, yazı rengi/font/efekt ve animasyonlar.
+- 720p / 1080p / deneysel kaynağa yakın video kaydı seçeneği. Tarayıcıda gerçek zamanlı MediaRecorder çıktısı Safari'de **deneyseldir**; kayıt sesinde donma veya biçim uyumsuzluğu hâlâ mümkün olabilir. Kesin MP4 çıktısı için FFmpeg tabanlı sunucu işleme gerekir.
+
+## Yayınlama
+
+Statik site olarak Vercel veya GitHub Pages'te yayınlanır; derleme gerekmiyor. `index.html`, `app.js`, `subtitle-timing.js`, `styles.css` ve `local-transcriber.js` birlikte olmalıdır. Önceden kalan `worker.js` ve `wrangler.toml`, bu sürümde otomatik altyazı için kullanılmaz.
+
+## Kontrol notu
+
+Altyazı oluşturma algoritması Türkçe, noktalama, duraksama, metni kayıpsız taşıma, çeşitli satır uzunlukları, bölme/birleştirme ve örtüşmeyen zamanlar için örnek verilerle kontrol edilmiştir. iPad'de uçtan uca gerçek video testi bu oturumda yapılmamıştır.
