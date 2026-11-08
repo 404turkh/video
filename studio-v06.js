@@ -315,6 +315,21 @@
   const s=state.cues.map((c,i)=>(i+1)+'\n'+toSRT(c.start)+' --> '+toSRT(c.end)+'\n'+c.text+'\n').join('\n');
   download(new Blob(['\ufeff',s],{type:'text/plain;charset=utf-8'}),(state.name||'altyazi')+'.srt');
  }
+ function parseSRT(raw){
+  const chunks=String(raw||'').replace(/^\uFEFF/,'').replace(/\r/g,'').trim().split(/\n\s*\n/);
+  const cues=[];
+  for(const chunk of chunks){
+   const lines=chunk.split('\n');
+   const idx=lines.findIndex(l=>l.includes('-->'));if(idx<0)continue;
+   const m=lines[idx].match(/(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/);
+   if(!m)continue;
+   const toSeconds=(h,min,s,ms)=>Number(h)*3600+Number(min)*60+Number(s)+Number(ms.padEnd(3,'0'))/1000;
+   const start=toSeconds(...m.slice(1,5)),end=toSeconds(...m.slice(5,9));
+   const text=lines.slice(idx+1).join('\n').trim();
+   if(text&&end>start)cues.push({id:id(),text,start,end,edited:true});
+  }
+  return cues.sort((a,b)=>a.start-b.start);
+ }
  function syncStyleForm(){
   const p=state.captionStyle;
   for(const [key,id] of [['font','captionFont'],['size','captionSize'],['weight','captionWeight'],['color','captionColor'],['outline','captionOutline'],['outlineColor','outlineColor'],['bottom','captionBottom'],['stretch','captionStretch'],['skew','captionSkew'],['rotate','captionRotate'],['animationSpeed','captionAnimSpeed'],['shadow','captionShadow'],['background','captionBackground'],['bgAlpha','bgAlpha'],['uppercase','captionUppercase']]){
@@ -405,6 +420,7 @@
   if(saved)state=normalize(saved);
   $('projectName').value=state.name;
   $('captionDensity').value=state.density;
+  $('aspectSelect').value=state.aspect;
   syncStyleForm();updateCues();renderLayers();
   let media=null;try{media=await Store.loadMedia()}catch(_){}
   if(media?.blob&&(!state.fileName||media.name===state.fileName)){
@@ -425,6 +441,7 @@
   $('chooseVideo').addEventListener('click',()=>$('videoInput').click());
   $('videoInput').addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';void videoUpload(f)});
   $('projectName').addEventListener('input',e=>{state.name=e.target.value;queueSave()});
+  $('aspectSelect').addEventListener('change',e=>{state.aspect=e.target.value;onVideoMetadata();updatePreview(true);queueSave()});
   $('saveProject').addEventListener('click',async()=>{await saveNow();setStatus('Şimdi kaydedildi','ok')});
   $('backupProject').addEventListener('click',saveBackup);
   $('exportProject').addEventListener('click',saveBackup);
@@ -437,7 +454,7 @@
     if(!confirm('Yedek açılacak. Mevcut taslaktaki altyazı/metinler değişecek. Devam?'))return;
     const previousName=state.fileName;
     state=normalize(raw);selectedLayerId=null;undoCues=null;editCues=false;
-    $('projectName').value=state.name;$('captionDensity').value=state.density;
+    $('projectName').value=state.name;$('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;
     if(mediaBlob&&previousName!==state.fileName){setMedia(null);await Store.clearMedia();setMediaStatus('Yedekteki videoyu tekrar yüklemelisin.')}
     syncStyleForm();updateCues();renderLayers();onVideoMetadata();queueSave();await saveNow();
     setStatus('Proje yedeği açıldı','ok');
@@ -448,12 +465,22 @@
    vid.pause();state=freshState();mediaBlob=null;selectedLayerId=null;undoCues=null;editCues=false;
    if(mediaURL)URL.revokeObjectURL(mediaURL);mediaURL=null;
    await Store.clearAll();setMedia(null);$('projectName').value=state.name;
-   $('captionDensity').value=state.density;syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
+   $('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
    queueSave();setPage('project');
   });
   $('autoCaption').addEventListener('click',()=>{void transcribe()});
   $('captionDensity').addEventListener('change',e=>{state.density=e.target.value;queueSave()});
   $('reflowCues').addEventListener('click',reflow);
+  $('importSRT').addEventListener('click',()=>$('srtFile').click());
+  $('exportSRTCaptions').addEventListener('click',downloadSRT);
+  $('srtFile').addEventListener('change',async event=>{
+   const file=event.target.files?.[0];event.target.value='';if(!file)return;
+   const imported=parseSRT(await file.text());
+   if(!imported.length){say('SRT dosyasında geçerli zamanlı satır bulunamadı.','timingStatus');return}
+   if(state.cues.length&&!confirm('SRT dosyası mevcut altyazıların yerini alacak. Devam?'))return;
+   state.cues=imported;state.rawWords=[];editCues=true;undoCues=null;
+   updateCues();queueSave();say('✓ '+imported.length+' SRT satırı içe aktarıldı.','timingStatus');
+  });
   $('undoReflow').addEventListener('click',()=>{if(!undoCues)return;state.cues=undoCues;undoCues=null;editCues=true;$('undoReflow').disabled=true;updateCues();queueSave()});
   $('addCue').addEventListener('click',()=>{
    const t=round(vid.currentTime||0);
