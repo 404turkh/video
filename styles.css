@@ -16,3 +16,18 @@
 .ai-design-btn{margin-top:11px;border-color:#e98a59;color:#ffc5a2}
 #animationSpeed,#backgroundOpacity,#letterSpacing{margin:6px 0 18px}
 #exportQuality{margin-bottom:8px}
+
+/* SubStudio v0.5 — Smart timing controls, optimized for touch */
+.smart-reflow{border:1px solid #4b393a;border-radius:14px;padding:13px;background:linear-gradient(135deg,#2d2527,#201f25);margin:0 0 16px}
+.smart-reflow .field-label{margin:2px 0 8px}
+.smart-reflow .control{margin-bottom:9px}
+.smart-reflow .primary{padding:12px}
+.smart-reflow .outline{margin-top:8px}
+.smart-reflow-status{font-size:11px;line-height:1.6;color:#c4a9a3;padding:12px 2px 0;overflow-wrap:anywhere}
+.cue-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cue-tools button{border:1px solid #45404a;color:#f2e3da;background:#2d2a31;border-radius:8px;min-height:36px;padding:7px 3px;font-size:10px;font-weight:700;touch-action:manipulation}
+.cue-tools button:active{background:#573d37}
+.cue-tools button:disabled{opacity:.4}
+.cue-card-top span{overflow-wrap:anywhere}
+#horizontalScale,#skewX,#rotateText{margin:6px 0 18px}
+@media(max-width:530px){.cue-tools button{font-size:10px;min-height:41px}}
