@@ -1,11 +1,11 @@
-/* 焱 SubStudio 0.4 — gelişmiş yazı tasarımı */
+/* 焱 SubStudio 0.5 — kelime zamanlı altyazı ve yatay tasarım */
 'use strict';
 const $ = (id) => document.getElementById(id);
 const video = $('video');
 const frame = $('previewWindow');
 const subtitle = $('subtitlePreview');
 const captionText = $('subtitleText');
-const defaults = {font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',bottom:18,shadow:true,background:false,animation:'pop',ratio:'original',weight:800,spacing:0,align:'center',uppercase:false,animationSpeed:0.4,backgroundOpacity:62};
+const defaults = {font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',bottom:18,shadow:true,background:false,animation:'pop',ratio:'original',weight:800,spacing:0,align:'center',uppercase:false,animationSpeed:0.4,backgroundOpacity:62,horizontalScale:100,skewX:0,rotateText:0};
 const presets = {
   ember:{font:"'DM Sans',Arial,sans-serif",size:58,stroke:4,color:'#ffffff',strokeColor:'#17131b',shadow:true,background:false,animation:'pop'},
   clean:{font:"'DM Sans',Arial,sans-serif",size:54,stroke:0,color:'#ffffff',strokeColor:'#000000',shadow:true,background:false,animation:'fade'},
@@ -20,6 +20,7 @@ try{const stored=JSON.parse(localStorage.getItem('substudio-caption-style')||'nu
 const styledText=s=>style.uppercase?String(s).toLocaleUpperCase('tr-TR'):String(s);
 function persistStyle(){try{localStorage.setItem('substudio-caption-style',JSON.stringify(style))}catch{}}
 let previewTimeout=null;
+let rawTranscriptWords=[], transcriptWasEdited=false, reflowUndo=null;
 let renderedExportFile=null, exportStopByUser=false;
 let exporting=false, recording=null, drawFrameId=null, currentAudioContext=null, audioSource=null, exportStream=null;
 const safeNumber = (n,fallback=0) => Number.isFinite(Number(n)) ? Number(n) : fallback;
@@ -45,6 +46,9 @@ function updateSettings(){
  $('animationSpeed').value=style.animationSpeed;$('animationSpeedValue').textContent=Number(style.animationSpeed).toFixed(2)+' sn';
  $('textAlignSelect').value=style.align;$('uppercaseToggle').checked=style.uppercase;
  $('backgroundOpacity').value=style.backgroundOpacity;$('backgroundOpacityValue').textContent='%'+style.backgroundOpacity;
+ $('horizontalScale').value=style.horizontalScale;$('horizontalScaleValue').textContent='%'+style.horizontalScale;
+ $('skewX').value=style.skewX;$('skewXValue').textContent=style.skewX+'°';
+ $('rotateText').value=style.rotateText;$('rotateTextValue').textContent=style.rotateText+'°';
  $('position').value=style.bottom;$('positionValue').textContent='Alt · %'+style.bottom;
  $('shadowToggle').checked=style.shadow;$('backgroundToggle').checked=style.background;$('ratioSelect').value=style.ratio;
  document.querySelectorAll('[data-animation]').forEach(b=>b.classList.toggle('selected',b.dataset.animation===style.animation));
@@ -61,6 +65,8 @@ function applyFontToPreview(){
  captionText.style.textShadow=style.shadow?'0 3px 10px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.3)':'none';
  captionText.style.background=style.background?'rgba(0,0,0,'+(style.backgroundOpacity/100)+')':'transparent';
  captionText.style.borderRadius='6px';
+ captionText.style.transform='scaleX('+(style.horizontalScale/100)+') skewX('+style.skewX+'deg) rotate('+style.rotateText+'deg)';
+ captionText.style.transformOrigin='center center';
  subtitle.style.bottom=style.bottom+'%';
  subtitle.style.textAlign=style.align;
  subtitle.style.justifyContent=style.align==='left'?'flex-start':style.align==='right'?'flex-end':'center';
@@ -218,6 +224,9 @@ function drawExportFrame(ctx,cw,ch,t){
  let alpha=1,animScale=1,dy=0;
  if(style.animation==='pop'){alpha=p;animScale=.65+.35*(1-Math.pow(1-p,3))}else if(style.animation==='fade'){alpha=p}else if(style.animation==='slide'){alpha=p;dy=(1-p)*sz*.75}else if(style.animation==='glow'){alpha=.35+.65*p}
  ctx.globalAlpha=alpha;ctx.translate(style.align==='left'?cw*.08:style.align==='right'?cw*.92:cw/2,centerY+dy);ctx.scale(animScale,animScale);
+ ctx.rotate(style.rotateText*Math.PI/180);
+ ctx.transform(1,0,Math.tan(style.skewX*Math.PI/180),1,0,0);
+ ctx.scale(style.horizontalScale/100,1);
  if(style.background){const boxWidth=Math.min(cw*.86,Math.max(...lines.map(l=>ctx.measureText(l).width))+sz*.42);ctx.fillStyle='rgba(0,0,0,'+(style.backgroundOpacity/100)+')';ctx.fillRect(style.align==='left'?-sz*.18:style.align==='right'?-boxWidth+sz*.18:-boxWidth/2,-sz*.12,boxWidth,blockHeight+sz*.16)}
  lines.forEach((line,i)=>{
    const y=i*lineHeight+lineHeight/2;
@@ -409,7 +418,7 @@ function wireEvents(){
  document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
  document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{selectedPreset=b.dataset.preset;style={...style,...presets[selectedPreset]};updateSettings()}));
  document.querySelectorAll('[data-animation]').forEach(b=>b.addEventListener('click',()=>{style.animation=b.dataset.animation;selectedPreset='';updateSettings()}));
- const attrs=[['fontSelect','font'],['fontSize','size'],['strokeSize','stroke'],['textColor','color'],['strokeColor','strokeColor'],['position','bottom'],['ratioSelect','ratio'],['backgroundToggle','background'],['shadowToggle','shadow'],['fontWeight','weight'],['letterSpacing','spacing'],['animationSpeed','animationSpeed'],['textAlignSelect','align'],['uppercaseToggle','uppercase'],['backgroundOpacity','backgroundOpacity']];
+ const attrs=[['fontSelect','font'],['fontSize','size'],['strokeSize','stroke'],['textColor','color'],['strokeColor','strokeColor'],['position','bottom'],['ratioSelect','ratio'],['backgroundToggle','background'],['shadowToggle','shadow'],['fontWeight','weight'],['letterSpacing','spacing'],['animationSpeed','animationSpeed'],['textAlignSelect','align'],['uppercaseToggle','uppercase'],['backgroundOpacity','backgroundOpacity'],['horizontalScale','horizontalScale'],['skewX','skewX'],['rotateText','rotateText']];
  attrs.forEach(([id,key])=>$(id).addEventListener('input',e=>{
   style[key]=e.target.type==='checkbox'?e.target.checked:e.target.type==='range'||id==='fontWeight'?Number(e.target.value):e.target.value;
   selectedPreset='';updateSettings()
