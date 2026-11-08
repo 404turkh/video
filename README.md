@@ -1,43 +1,39 @@
-# 焱 SubStudio — v0.1
+# 焱 SubStudio — v0.2 Beta (API anahtarsız)
 
-Türkçe arayüzlü, animasyonlu altyazı editörü. Vercel'de yayınlanabilen HTML/CSS/JS tabanlı ilk sürüm.
+Türkçe arayüzlü, animasyonlu altyazı editörü. Web sitesi saf HTML/CSS/JS ile çalışır.
 
-## Özellikler
+## Yerel AI otomatik altyazı
 
-- MP4/WebM videolarını tarayıcıda yükleme ve önizleme
-- Zamanlı altyazıları görüntüleme ve metin/zaman düzenleme
-- 6 yazı stili, farklı fontlar (Arapça için Amiri), renk, kontur, gölge ve animasyon
-- SRT altyazı dosyası içe ve dışa aktarma
-- Cloudflare Worker üzerinden isteğe bağlı otomatik AI transkripsiyonu
-- Deneysel video + ses dışa aktarma (özellikle Safari'de kısıtlı olabilir)
+- Cloudflare Worker, OpenAI API anahtarı veya abonelik **gerekmez**.
+- `local-transcriber.js` tarayıcıda çok dilli Whisper Tiny modelini çalıştırır (Transformers.js / WebAssembly).
+- Model ilk kullanımda Hugging Face üzerinden indirilir; ses ve video dosyaları transkripsiyon için dışarı yüklenmez.
+- Ses, videodan Web Audio ile gerçek zamanlı yakalandığı için işlem video süresi kadar sürebilir. Model indirme ve tanıma için ek süre gerekir.
+- Özellikle iPad/Safari için 10–30 saniyelik MP4/H.264 + AAC sesli videolarla dene. Beta sürümde **90 saniye** ve **120 MB** sınırları vardır.
+- İngilizce, Türkçe ve Arapça dil seçilebilir veya otomatik tanıma kullanılabilir.
+- Kelime zamanları üretilerek editörün normal altyazı satırlarına çevrilir; doğruluk garanti değildir.
+- Kur'an ayetleri ve mealler gibi hassas metinlerde çıktıyı kaynakla kontrol et; otomatik tanıma hatalı olabilir.
+- İPad'de bellek sınırları, tarayıcıların ses yakalama kısıtları, CDN veya model indirme engelleri nedeniyle başarısız olabilir; bu hali gerçek cihazda doğrulanmış değildir.
 
-## Siteyi Vercel'de yayınlama
+## Sunumu yayınlamak
 
-1. Bu GitHub deposunu Vercel'e import et.
-2. **Framework Preset: Other** seç. Build command gerekmez.
-3. Siteyi yayınla. Altyazı düzenleme ve SRT araçları API anahtarsız çalışır.
+1. GitHub reposunu GitHub Pages veya Vercel'e bağla.
+2. Sadece statik dosyaları yayınla; derleme komutu yok.
+3. Videoyu yükle → **API olmadan altyazı oluştur** → dili seç → sonucu düzenle → SRT indir veya deneysel dışa aktar seçeneğini kullan.
 
-## AI otomatik altyazıyı etkinleştirme
+## Desteklenen diğer araçlar
 
-1. `worker.js` dosyasını ayrı bir Cloudflare Worker olarak yayınla. İstersen `wrangler.toml` yapılandırmasını kullan.
-2. `OPENAI_API_KEY` değerini Cloudflare'de **Secret** olarak ekle. Anahtarı GitHub koduna veya tarayıcı tarafına yazma.
-3. `ALLOWED_ORIGIN` değişkenini sitenin tam adresine ayarla (örnek: `https://ornek.vercel.app`).
-4. SubStudio içindeki Ayarlar bölümüne Worker URL'sini yaz.
-5. 25 MB altındaki MP4/WebM dosyalarında otomatik altyazıyı dene.
-
-**Güvenlik:** CORS kullanıcı doğrulaması değildir. Ücretli API anahtarınla hizmeti herkese açmadan önce oturum açma, hız kısıtlama, kullanıcı kotası, kötüye kullanım ve harcama limiti eklenmeli. AI transkripsiyonunda dosya üçüncü taraf sağlayıcıya aktarılır.
-
-**Model durumu:** Bu MVP, kelime zamanlarını almak için `whisper-1` kullanır. Modelin 26 Şubat 2027'de kaldırılması planlandığı için uzun vadede yeni bir model ve hizalama çözümü gerekecek.
-
-**Dışa aktarma:** Tarayıcı üzerinden videoya altyazı yakma deneyseldir; iPhone/iPad Safari'de her zaman çalışmayabilir. Güvenilir, sesli MP4 için ileride FFmpeg tabanlı sunucu render'ı eklenmeli.
+- MP4/WebM video yükleme, canlı önizleme, zamanları elle düzeltme.
+- Altı hazır yazı stili, animasyonlar, yazı tipleri, renk ve gölge.
+- SRT dosyası içe/dışa aktarma.
+- Deneysel tarayıcı tabanlı video kaydı; Safari'de sesli MP4 dışa aktarma garantili değil.
 
 ## Dosyalar
 
-- `index.html`: Sayfa
-- `styles.css`: Tasarım
-- `app.js`: Editör davranışları
-- `worker.js`: Opsiyonel transkripsiyon API'si
-- `wrangler.toml`: Cloudflare yapılandırması
-- `vercel.json`: Vercel ayarları
+- `index.html` — web arayüzü.
+- `styles.css` — tasarım.
+- `app.js` — editör ve yerel AI düğmesinin bağlantısı.
+- `local-transcriber.js` — cihazdaki Whisper transkripsiyonu.
+- `vercel.json` — Vercel statik barındırma.
+- `worker.js` ve `wrangler.toml` — v0.1'den kalan **isteğe bağlı eski API örneği**, mevcut arayüz bunları **kullanmıyor**.
 
-Sıradaki fikirler: Arapça/Türkçe çift satır ayet modu, karaoke kelime vurgusu, şablon kaydetme, güvenilir MP4 çıktısı.
+API anahtarı GitHub'a veya tarayıcıya eklenmemelidir.
