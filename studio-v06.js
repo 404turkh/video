@@ -76,6 +76,7 @@
  const snapshot=()=>JSON.parse(JSON.stringify({...state,version:6,savedAt:Date.now()}));
  function queueSave(){
   if(!restored)return;
+  window.SubStudioExporter?.invalidate?.();
   saveEpoch++;setStatus('Kaydediliyor…','warn');clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{void saveNow()},330);
  }
@@ -112,7 +113,7 @@
   if(name==='export')refreshExportInfo();
   if(name==='layers')renderLayers();
   if(name==='style')updateStyleForm();
-  window.scrollTo({top:0,behavior:'instant'});
+  try{window.scrollTo({top:0,behavior:'auto'})}catch(_){}
  }
  function onVideoMetadata(){
   state.fileName=state.fileName||mediaBlob?.name||'';
@@ -202,7 +203,10 @@
    el.addEventListener('pointerdown',event=>{
     if(page!=='layers')return;
     event.preventDefault();
-    selectLayer(l.id);
+    selectedLayerId=l.id;
+    $('layerEditor').hidden=false;
+    syncLayerForm();
+    el.style.outline='1px dashed #ffa477';
     const dragEl=el;
     const startX=event.clientX,startY=event.clientY;
     const sx=l.x,sy=l.y;
@@ -496,7 +500,7 @@
   window.addEventListener('pagehide',()=>{void saveNow()});
  }
  function renderLayerTitle(){const el=activeLayer();const card=[...$('layerList').children].find((_,i)=>state.layers[i]?.id===el?.id);if(card)card.querySelector('.layer-name').textContent=el.text.slice(0,95)||'Boş metin'}
- const app={getState:()=>state,getVideo:()=>vid,hasVideo:()=>!!mediaBlob,getFile:()=>mediaBlob,download:download,saveNow:saveNow,
+ const app={getState:()=>state,getVideo:()=>vid,hasVideo:()=>!!mediaBlob,getFile:()=>mediaBlob,download:download,saveNow:saveNow,downloadSRT:downloadSRT,
    activeLayers:activeLayers, getCueAt:t=>state.cues.find(c=>c.start<=t&&t<c.end),formatTime:time,
    setStatus:(message)=>say(message,'exportStatus'),refreshExportInfo:refreshExportInfo,
    onExportEnd:()=>{updatePreview(true)}};
