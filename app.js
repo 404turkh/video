@@ -106,11 +106,16 @@ function renderCues(){
  }));
  box.querySelectorAll('[data-text]').forEach(el=>el.addEventListener('input',()=>{const c=cues.find(c=>c.id===el.dataset.text);if(c){c.text=el.value;c.edited=true;transcriptWasEdited=true;showCue(true)}}));
  for(const prop of ['start','end'])box.querySelectorAll(`[data-${prop}]`).forEach(el=>el.addEventListener('change',()=>{
-    const c=cues.find(c=>c.id===el.dataset[prop]);if(!c)return;
-    const n=Math.max(0,safeNumber(el.value,c[prop]));
-    if(prop==='start'&&n>=c.end){notify('Başlangıç, bitişten önce olmalı.');el.value=c.start.toFixed(2);return}
-    if(prop==='end'&&n<=c.start){notify('Bitiş, başlangıçtan sonra olmalı.');el.value=c.end.toFixed(2);return}
-    c[prop]=n;c.edited=true;transcriptWasEdited=true;showCue(true);
+  const index=cues.findIndex(x=>x.id===el.dataset[prop]);if(index<0)return;
+  const c=cues[index],prev=cues[index-1],next=cues[index+1];
+  const n=el.value.trim()===''?NaN:Number(el.value);
+  const low=prop==='start'?(prev?prev.end+.02:0):c.start+.08;
+  const high=prop==='start'?c.end-.08:(next?next.start-.02:Infinity);
+  if(!Number.isFinite(n)||n<low-.001||n>high+.001){
+   notify('Bu zaman diğer altyazıyla çakışıyor veya geçersiz.');el.value=c[prop].toFixed(2);return;
+  }
+  c[prop]=Math.round(n*100)/100;c.edited=true;transcriptWasEdited=true;
+  renderCues();
  }));
  box.querySelectorAll('[data-delete]').forEach(el=>el.addEventListener('click',()=>{cues=cues.filter(c=>c.id!==el.dataset.delete);transcriptWasEdited=true;renderCues()}));
  box.querySelectorAll('[data-cue-action]').forEach(el=>el.addEventListener('click',()=>adjustCue(el.dataset.id,el.dataset.cueAction)));
