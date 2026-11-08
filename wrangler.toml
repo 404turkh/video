@@ -1,0 +1,7 @@
+name = "substudio-transcribe"
+main = "worker.js"
+compatibility_date = "2026-11-08"
+
+# Set this to the exact origin of your deployed frontend, with no trailing slash.
+[vars]
+ALLOWED_ORIGIN = "https://YOUR-SITE.vercel.app"
