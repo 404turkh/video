@@ -94,25 +94,26 @@ function syncTimeline(){
  showCue();
 }
 function renderCues(){
- updateSteps();$('designCaptions').hidden=!cues.length;const box=$('cueList');
+ updateSteps();$('designCaptions').hidden=!cues.length;const box=$('cueList');updateTimingStatus();
  if(!cues.length){box.innerHTML='<div class="cue-empty">Henüz altyazı yok.<br>Cihazında AI ile oluştur veya elle ilk satırı ekle.</div>';showCue(true);return}
  box.innerHTML=cues.map((cue,i)=>`<div class="cue-card" data-cue-id="${cue.id}">
- <div class="cue-card-top"><span>● SATIR ${String(i+1).padStart(2,'0')}</span><button class="remove-cue" data-delete="${cue.id}" title="Satırı sil" aria-label="Satırı sil">× SİL</button></div>
+ <div class="cue-card-top"><span>● SATIR ${String(i+1).padStart(2,'0')} ${cue.estimated?'· TAHMİNİ ZAMAN':''}</span><button class="remove-cue" data-delete="${cue.id}" title="Satırı sil" aria-label="Satırı sil">× SİL</button></div>
  <textarea class="cue-text" data-text="${cue.id}" rows="2" aria-label="Altyazı metni">${escapeHtml(cue.text)}</textarea>
- <div class="cue-times"><label>BAŞLANGIÇ (sn)<input type="number" min="0" step="0.1" data-start="${cue.id}" value="${cue.start.toFixed(2)}" /></label><label>BİTİŞ (sn)<input type="number" min="0" step="0.1" data-end="${cue.id}" value="${cue.end.toFixed(2)}" /></label></div></div>`).join('');
+ <div class="cue-times"><label>BAŞLANGIÇ (sn)<input type="number" min="0" step="0.1" data-start="${cue.id}" value="${cue.start.toFixed(2)}" /></label><label>BİTİŞ (sn)<input type="number" min="0" step="0.1" data-end="${cue.id}" value="${cue.end.toFixed(2)}" /></label></div><div class="cue-tools" aria-label="Hızlı satır düzeltme"><button type="button" data-cue-action="back" data-id="${cue.id}">◀ 0,1sn</button><button type="button" data-cue-action="forward" data-id="${cue.id}">0,1sn ▶</button><button type="button" data-cue-action="split" data-id="${cue.id}">✂ Böl</button><button type="button" data-cue-action="merge" data-id="${cue.id}" ${i===cues.length-1?"disabled":""}>⇄ Birleştir</button><button type="button" data-cue-action="startEarlier" data-id="${cue.id}">Baş −0,1</button><button type="button" data-cue-action="endLater" data-id="${cue.id}">Bitiş +0,1</button></div></div>`).join('');
  box.querySelectorAll('[data-cue-id]').forEach(el=>el.addEventListener('click',e=>{
    if(e.target.matches('input,textarea,button'))return;
    const cue=cues.find(c=>c.id===el.dataset.cueId);if(cue&&hasVideo()){video.currentTime=cue.start;syncTimeline()}
  }));
- box.querySelectorAll('[data-text]').forEach(el=>el.addEventListener('input',()=>{const c=cues.find(c=>c.id===el.dataset.text);if(c){c.text=el.value;showCue(true)}}));
+ box.querySelectorAll('[data-text]').forEach(el=>el.addEventListener('input',()=>{const c=cues.find(c=>c.id===el.dataset.text);if(c){c.text=el.value;c.edited=true;transcriptWasEdited=true;showCue(true)}}));
  for(const prop of ['start','end'])box.querySelectorAll(`[data-${prop}]`).forEach(el=>el.addEventListener('change',()=>{
     const c=cues.find(c=>c.id===el.dataset[prop]);if(!c)return;
     const n=Math.max(0,safeNumber(el.value,c[prop]));
     if(prop==='start'&&n>=c.end){notify('Başlangıç, bitişten önce olmalı.');el.value=c.start.toFixed(2);return}
     if(prop==='end'&&n<=c.start){notify('Bitiş, başlangıçtan sonra olmalı.');el.value=c.end.toFixed(2);return}
-    c[prop]=n;showCue(true);
+    c[prop]=n;c.edited=true;transcriptWasEdited=true;showCue(true);
  }));
- box.querySelectorAll('[data-delete]').forEach(el=>el.addEventListener('click',()=>{cues=cues.filter(c=>c.id!==el.dataset.delete);renderCues()}));
+ box.querySelectorAll('[data-delete]').forEach(el=>el.addEventListener('click',()=>{cues=cues.filter(c=>c.id!==el.dataset.delete);transcriptWasEdited=true;renderCues()}));
+ box.querySelectorAll('[data-cue-action]').forEach(el=>el.addEventListener('click',()=>adjustCue(el.dataset.id,el.dataset.cueAction)));
  showCue(true);
 }
 function addCue(start,end,text){cues.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),start:Math.max(0,start),end:Math.max(start+.1,end),text});cues.sort((a,b)=>a.start-b.start);renderCues()}
@@ -478,6 +479,13 @@ function wireEvents(){
  });
  $('designCaptions').addEventListener('click',()=>{switchTab('style');if(cues.length&&hasVideo()){video.pause();video.currentTime=cues[0].start+.05;showCue(true)}});
  $('autoCaption').addEventListener('click',transcribe);
+ $('smartReflow').addEventListener('click',smartReflow);
+ $('undoSmartReflow').addEventListener('click',()=>{
+  if(!reflowUndo)return;
+  cues=cloneCues(reflowUndo);reflowUndo=null;$('undoSmartReflow').hidden=true;
+  transcriptWasEdited=true;activeCueId=null;renderCues();
+  updateTimingStatus('Son akıllı düzenleme geri alındı.');
+ });
  $('addCue').addEventListener('click',()=>{const start=video.currentTime||0;addCue(start,start+2,'Yeni altyazı');setTimeout(()=>{$('cueList').lastElementChild?.scrollIntoView({block:'nearest'})},50)});
  $('sampleCaptions').addEventListener('click',()=>{rawTranscriptWords=[];transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;fillDemo();switchTab('captions')});
  $('downloadSRT').addEventListener('click',downloadSRT);$('quickSRT').addEventListener('click',downloadSRT);
