@@ -382,8 +382,25 @@ function wireEvents(){
  document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
  document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{selectedPreset=b.dataset.preset;style={...style,...presets[selectedPreset]};updateSettings()}));
  document.querySelectorAll('[data-animation]').forEach(b=>b.addEventListener('click',()=>{style.animation=b.dataset.animation;selectedPreset='';updateSettings()}));
- const attrs=[['fontSelect','font'],['fontSize','size'],['strokeSize','stroke'],['textColor','color'],['strokeColor','strokeColor'],['position','bottom'],['ratioSelect','ratio'],['backgroundToggle','background'],['shadowToggle','shadow']];
- attrs.forEach(([id,key])=>$(id).addEventListener('input',e=>{style[key]=e.target.type==='checkbox'?e.target.checked:e.target.type==='range'?Number(e.target.value):e.target.value;selectedPreset='';updateSettings()}));
+ const attrs=[['fontSelect','font'],['fontSize','size'],['strokeSize','stroke'],['textColor','color'],['strokeColor','strokeColor'],['position','bottom'],['ratioSelect','ratio'],['backgroundToggle','background'],['shadowToggle','shadow'],['fontWeight','weight'],['letterSpacing','spacing'],['animationSpeed','animationSpeed'],['textAlignSelect','align'],['uppercaseToggle','uppercase'],['backgroundOpacity','backgroundOpacity']];
+ attrs.forEach(([id,key])=>$(id).addEventListener('input',e=>{
+  style[key]=e.target.type==='checkbox'?e.target.checked:e.target.type==='range'||id==='fontWeight'?Number(e.target.value):e.target.value;
+  selectedPreset='';updateSettings()
+ }));
+ document.querySelectorAll('[data-text-color]').forEach(b=>b.addEventListener('click',()=>{style.color=b.dataset.textColor;selectedPreset='';updateSettings()}));
+ $('resetCaptionStyle').addEventListener('click',()=>{style={...defaults,ratio:style.ratio};selectedPreset='ember';updateSettings();notify('Yazı tasarımı sıfırlandı.')});
+ $('previewCaptionStyle').addEventListener('click',()=>{
+  clearTimeout(previewTimeout);
+  if(cues.length&&hasVideo()){
+   video.pause();video.currentTime=cues[0].start+Math.min(.1,(cues[0].end-cues[0].start)/2);showCue(true);
+  }else{
+   captionText.textContent=styledText('ÖRNEK ALTYAZI · 焱');
+   applyFontToPreview();
+   subtitle.className='subtitle-preview '+(style.animation==='none'?'':style.animation);
+   subtitle.style.display='flex';previewTimeout=setTimeout(()=>showCue(true),2600);
+  }
+ });
+ $('designCaptions').addEventListener('click',()=>{switchTab('style');if(cues.length&&hasVideo()){video.pause();video.currentTime=cues[0].start+.05;showCue(true)}});
  $('autoCaption').addEventListener('click',transcribe);
  $('addCue').addEventListener('click',()=>{const start=video.currentTime||0;addCue(start,start+2,'Yeni altyazı');setTimeout(()=>{$('cueList').lastElementChild?.scrollIntoView({block:'nearest'})},50)});
  $('sampleCaptions').addEventListener('click',()=>{fillDemo();switchTab('captions')});
