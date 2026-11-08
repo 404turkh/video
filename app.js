@@ -120,22 +120,61 @@ function fileUpload(f){
  if(!f)return;
  if(!f.type.startsWith('video/')&&!/\.(mp4|mov|webm|m4v)$/i.test(f.name)){notify('Lütfen geçerli bir video yükle.');return}
  if(objectURL)URL.revokeObjectURL(objectURL);
- resetExportSave();file=f;objectURL=URL.createObjectURL(f);video.src=objectURL;video.load();cues=[];activeCueId=null;renderCues();
+ resetExportSave();rawTranscriptWords=[];transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;file=f;objectURL=URL.createObjectURL(f);video.src=objectURL;video.load();cues=[];activeCueId=null;renderCues();
  $('emptyState').style.display='none';$('previewBadge').style.display='block';$('aiStatus').textContent='Video hazır. API anahtarı olmadan cihazında otomatik altyazı deneyebilirsin.';
  $('videoMeta').textContent=`${f.name.length>22?f.name.slice(0,19)+'…':f.name} · ${(f.size/1024/1024).toFixed(1)} MB`;
  updateRatio();updateSteps();notify('Video yüklendi. Şimdi altyazı oluşturabilirsin.');
 }
 function groupWords(words){
- const result=[];let group=[];
- const flush=()=>{if(!group.length)return;result.push({id:crypto.randomUUID?crypto.randomUUID():String(Math.random()),start:group[0].start,end:Math.max(group.at(-1).end,group[0].start+.2),text:group.map(w=>w.word).join(' ').replace(/\s+([,.!?;:])/g,'$1').trim()});group=[]};
- for(const raw of words){
-   const w={word:String(raw.word||'').trim(),start:safeNumber(raw.start),end:safeNumber(raw.end)};if(!w.word||w.end<=w.start)continue;
-   const prospective=[...group,w],combined=prospective.map(x=>x.word).join(' ');
-   if(group.length&&(w.start-group.at(-1).end>.55 || group.length>=5||combined.length>34||w.end-group[0].start>2.8))flush();
-   group.push(w);
-   if(/[.!?؟]$/.test(w.word)&&group.length>=2)flush();
- }
- flush();return result;
+ if(!window.SubStudioTiming)throw Error('Zamanlama modülü yüklenmedi; sayfayı yenile.');
+ return window.SubStudioTiming.createCues(words,{mode:$('captionDensity').value});
+}
+function cloneCues(list){return list.map(c=>({...c,words:c.words?.map(w=>({...w}))}))}
+function updateTimingStatus(message){
+ if(message){$('timingStatus').textContent=message;return}
+ if(!cues.length){$('timingStatus').textContent='Önce AI altyazısı oluştur veya SRT yükle.';return}
+ const estimated=cues.filter(c=>c.estimated).length;
+ $('timingStatus').textContent=cues.length+' satır. '+(estimated
+ ?estimated+' satırın kelime süreleri tahminidir, kontrol et.'
+ :rawTranscriptWords.length?'Kelime zamanları kullanıldı; dinleyerek kontrol et.':'Süreleri elle düzeltebilirsin.');
+}
+function smartReflow(){
+ if(!cues.length){notify('Önce altyazı oluştur.');return}
+ if(rawTranscriptWords.length&&transcriptWasEdited&&!confirm('Elle yaptığın metin/zaman değişiklikleri geri alınabilir. İlk AI zamanlarından yeniden bölünsün mü?'))return;
+ const words=rawTranscriptWords.length?rawTranscriptWords:window.SubStudioTiming.approximateWordsFromCues(cues);
+ const made=groupWords(words);
+ if(!made.length){notify('Bölünecek altyazı bulunamadı.');return}
+ reflowUndo=cloneCues(cues);$('undoSmartReflow').hidden=false;cues=made;
+ transcriptWasEdited=false;activeCueId=null;renderCues();
+ updateTimingStatus('✓ '+made.length+' satır düzenlendi. '+(rawTranscriptWords.length?'Kelime zamanları korundu.':'SRT/manuel metin süreleri yaklaşık hesaplandı.'));
+ notify('Altyazılar yeniden bölündü.');
+}
+function adjustCue(id,action){
+ const index=cues.findIndex(c=>c.id===id);if(index<0)return;
+ const c=cues[index],prev=cues[index-1],next=cues[index+1];
+ const lo=prev?prev.end+.025:0;
+ const hi=next?next.start-.025:Number.isFinite(video.duration)?Math.max(video.duration,c.end):c.end+10;
+ const rnd=n=>Math.round(n*100)/100;
+ if(action==='split'){
+  const parts=window.SubStudioTiming.splitCue(c);
+  if(!parts){notify('Bu satır bölünemiyor; metin çok kısa.');return}
+  cues.splice(index,1,...parts);
+ }else if(action==='merge'){
+  if(!next){notify('Birleştirilecek sonraki satır yok.');return}
+  cues.splice(index,2,window.SubStudioTiming.mergeCues(c,next));
+ }else if(action==='back'||action==='forward'){
+  const desired=action==='back'?-0.1:0.1;
+  const delta=Math.max(lo-c.start,Math.min(desired,hi-c.end));
+  if(Math.abs(delta)<.005){notify('Diğer satırla çakışacağı için kaydırılamıyor.');return}
+  c.start=rnd(c.start+delta);c.end=rnd(c.end+delta);c.edited=true;
+ }else if(action==='startEarlier'){
+  c.start=rnd(Math.min(c.start,Math.max(lo,c.start-.1)));c.edited=true;
+ }else if(action==='endLater'){
+  c.end=rnd(Math.max(c.end,Math.min(hi,c.end+.1)));c.edited=true;
+ }else return;
+ transcriptWasEdited=true;cues.sort((x,y)=>x.start-y.start);
+ renderCues();
+ if(hasVideo()){video.currentTime=Math.max(0,cues[Math.min(index,cues.length-1)].start);syncTimeline()}
 }
 function guessName(){return(file?.name||'altyazi').replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,60)||'altyazi'}
 function makeSrtTime(n){let ms=Math.max(0,Math.round(n*1000));const h=Math.floor(ms/3600000);ms%=3600000;const m=Math.floor(ms/60000);ms%=60000;const s=Math.floor(ms/1000);ms%=1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`}
@@ -175,7 +214,8 @@ async function transcribe(){
   if(file!==selectedFile)throw Error('Video değişti, işlem iptal edildi. Yeni video için yeniden başlat.');
   const made=groupWords(words);
   if(!made.length)throw Error('Zamanlanmış altyazı oluşturulamadı.');
-  cues=made;renderCues();switchTab('style');
+  rawTranscriptWords=words.map(w=>({...w}));transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;
+  cues=made;renderCues();switchTab('captions');updateTimingStatus();
   $('aiStatus').textContent='✓ '+cues.length+' altyazı cihazında oluşturuldu. Metinleri kontrol edip düzenleyebilirsin.';
   notify(cues.length+' altyazı oluşturuldu! API anahtarı kullanılmadı.');
  }catch(err){
@@ -439,11 +479,11 @@ function wireEvents(){
  $('designCaptions').addEventListener('click',()=>{switchTab('style');if(cues.length&&hasVideo()){video.pause();video.currentTime=cues[0].start+.05;showCue(true)}});
  $('autoCaption').addEventListener('click',transcribe);
  $('addCue').addEventListener('click',()=>{const start=video.currentTime||0;addCue(start,start+2,'Yeni altyazı');setTimeout(()=>{$('cueList').lastElementChild?.scrollIntoView({block:'nearest'})},50)});
- $('sampleCaptions').addEventListener('click',()=>{fillDemo();switchTab('captions')});
+ $('sampleCaptions').addEventListener('click',()=>{rawTranscriptWords=[];transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;fillDemo();switchTab('captions')});
  $('downloadSRT').addEventListener('click',downloadSRT);$('quickSRT').addEventListener('click',downloadSRT);
  $('uploadSRTButton').addEventListener('click',()=>$('srtInput').click());
- $('srtInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;const c=parseSRT(await f.text());if(c.length){cues=c;renderCues();switchTab('captions');notify(`${c.length} SRT satırı içe aktarıldı.`)}else notify('Dosyadan geçerli SRT satırı okunamadı.');e.target.value=''});
- $('newProject').addEventListener('click',()=>{if(!confirm('Yeni proje başlatılsın mı? Geçerli altyazılar silinir.'))return;video.pause();video.removeAttribute('src');video.load();if(objectURL)URL.revokeObjectURL(objectURL);file=null;objectURL=null;resetExportSave();cues=[];activeCueId=null;renderCues();$('emptyState').style.display='flex';$('previewBadge').style.display='none';$('videoMeta').textContent='Henüz video yok';$('aiStatus').textContent='Video seçtikten sonra kullanabilirsin.';updateRatio();syncTimeline()});
+ $('srtInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;const c=parseSRT(await f.text());if(c.length){rawTranscriptWords=[];transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;cues=c;renderCues();switchTab('captions');notify(`${c.length} SRT satırı içe aktarıldı.`)}else notify('Dosyadan geçerli SRT satırı okunamadı.');e.target.value=''});
+ $('newProject').addEventListener('click',()=>{if(!confirm('Yeni proje başlatılsın mı? Geçerli altyazılar silinir.'))return;video.pause();video.removeAttribute('src');video.load();if(objectURL)URL.revokeObjectURL(objectURL);file=null;objectURL=null;resetExportSave();rawTranscriptWords=[];transcriptWasEdited=false;reflowUndo=null;$('undoSmartReflow').hidden=true;cues=[];activeCueId=null;renderCues();$('emptyState').style.display='flex';$('previewBadge').style.display='none';$('videoMeta').textContent='Henüz video yok';$('aiStatus').textContent='Video seçtikten sonra kullanabilirsin.';updateRatio();syncTimeline()});
  $('exportVideoTop').addEventListener('click',showExport);
  $('startExport').addEventListener('click',exportVideo);
  $('stopExport').addEventListener('click',()=>{if(recording?.state==='recording'){exportStopByUser=true;recording.stop()}});
