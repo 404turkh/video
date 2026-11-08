@@ -4,3 +4,15 @@
 [hidden]{display:none!important}
 #saveRenderedVideo,#shareRenderedVideo{margin-top:11px;cursor:pointer;touch-action:manipulation}
 #exportStatus{white-space:normal;overflow-wrap:anywhere}
+
+/* SubStudio 0.4 advanced typography controls */
+.style-guide{font-size:11px;line-height:1.65;color:#b6abb4;padding:12px 13px;background:#2a252b;border:1px solid #5b443c;border-radius:10px;margin-bottom:18px}
+.style-guide strong{color:#ffa779}
+.color-swatches{display:flex;flex-wrap:wrap;gap:11px;margin:2px 0 18px}
+.color-swatches button{width:29px;height:29px;flex:0 0 29px;border:2px solid #4b444a;border-radius:50%;background:var(--swatch);box-shadow:0 0 0 3px #1b1a1e;transition:transform .15s}
+.color-swatches button.selected{border-color:#ff9b64;outline:2px solid #ffa36f;outline-offset:2px;transform:scale(1.05)}
+.style-toolbar{display:flex;gap:8px;margin:18px 0}
+.style-toolbar button{flex:1;min-width:0;font-size:11px;padding:12px 8px}
+.ai-design-btn{margin-top:11px;border-color:#e98a59;color:#ffc5a2}
+#animationSpeed,#backgroundOpacity,#letterSpacing{margin:6px 0 18px}
+#exportQuality{margin-bottom:8px}
