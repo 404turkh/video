@@ -146,7 +146,7 @@
   try{history.replaceState(null,'','#'+name)}catch(_){}
   if(name==='export')refreshExportInfo();
   if(name==='layers')renderLayers();
-  if(name==='style')updateStyleForm();
+  if(name==='style')syncStyleForm();
   try{window.scrollTo({top:0,behavior:'auto'})}catch(_){}
  }
  function onVideoMetadata(){
@@ -785,13 +785,63 @@
    updateCues();queueSave();say('✓ '+imported.length+' SRT satırı içe aktarıldı.','timingStatus');
   });
   $('undoReflow').addEventListener('click',()=>{if(!undoCues)return;state.cues=undoCues;undoCues=null;editCues=true;$('undoReflow').disabled=true;updateCues();queueSave()});
-  $('addCue').addEventListener('click',()=>{
-   const t=round(vid.currentTime||0);
-   let start=t;for(const c of state.cues){if(c.start<=start&&c.end>start)start=round(c.end+.04)}
-   const end=round(Math.max(start+.4,Math.min(Number(vid.duration)||start+2,start+2)));
-   state.cues.push({id:id(),text:'Yeni altyazı',start,end,edited:true});
-   state.cues.sort((a,b)=>a.start-b.start);editCues=true;updateCues();queueSave();
+  $('addCue').addEventListener('click',()=>insertCue($('cueInsertMode').value));
+  $('cueInsertMode').addEventListener('change',e=>{
+   state.insertMode=e.target.value;queueSave();
+   $('cueInsertHelp').textContent=e.target.value==='append'
+    ?'Yeni satır en son altyazının BİTİŞ zamanından sonra eklenir. Eski satırların arasına girmez.'
+    :'Yeni satır oynatma konumundaki boş aralığa eklenir. Mevcut altyazının içine veya başka satırın üstüne girmez.';
   });
+  $('toggleTimelinePaste').addEventListener('click',()=>{
+   $('timelinePastePanel').hidden=!$('timelinePastePanel').hidden;
+  });
+  $('cancelTimelinePaste').addEventListener('click',()=>{
+   $('timelinePastePanel').hidden=true;
+  });
+  $('applyTimelinePaste').addEventListener('click',()=>{
+   const parsed=Precise.parseTimeline($('timelinePasteText').value,vid.duration);
+   if(parsed.errors.length){
+    $('timelinePasteStatus').textContent='⚠ '+parsed.errors.slice(0,4).join(' · ');
+    return;
+   }
+   if(!parsed.cues.length){
+    $('timelinePasteStatus').textContent='⚠ Saatli metin bulunamadı. Örnek: 00:00.158 – 00:02.518 (alt satırda metin)';
+    return;
+   }
+   if(state.cues.length&&!confirm('Yapıştırdığın liste mevcut altyazıların yerini alacak. Önce Yedek indir ile saklayabilirsin. Devam?'))return;
+   state.cues=parsed.cues.map(c=>({id:id(),start:c.start,end:c.end,text:c.text,edited:true}));
+   state.rawWords=[];editCues=true;undoCues=null;
+   $('undoReflow').disabled=true;
+   updateCues();queueSave();
+   $('timelinePasteStatus').textContent='✓ '+state.cues.length+' altyazı milisaniyeleri korunarak aktarıldı.';
+   $('timelinePastePanel').hidden=true;
+   cueMessage('✓ '+state.cues.length+' zamanlı satır eklendi. Saatler 0,001 saniye hassasiyetindedir.');
+  });
+  function setPlayheadFromInput(){
+   if(!mediaBlob){cueMessage('⚠ Önce video yükle.');return}
+   const value=Precise.parseClock($('playheadClock').value);
+   const duration=Number.isFinite(vid.duration)?vid.duration:Infinity;
+   if(value===null||value>duration+.0005){
+    cueMessage('⚠ Video zamanı geçersiz. Örnek: 00:05.720');
+    $('playheadClock').value=Precise.formatClock(vid.currentTime);
+    return;
+   }
+   vid.pause();vid.currentTime=value;
+   $('playheadClock').blur();updatePreview(true);
+  }
+  $('seekGoTime').addEventListener('click',setPlayheadFromInput);
+  $('playheadClock').addEventListener('keydown',event=>{
+   if(event.key==='Enter'){event.preventDefault();setPlayheadFromInput()}
+  });
+  for(const [idName,delta] of [['seekBackFine',-.01],['seekForwardFine',.01]]){
+   $(idName).addEventListener('click',()=>{
+    if(!mediaBlob){cueMessage('⚠ Önce video yükle.');return}
+    const max=Number.isFinite(vid.duration)?vid.duration:Infinity;
+    vid.pause();
+    vid.currentTime=Precise.roundMs(Math.max(0,Math.min(max,(vid.currentTime||0)+delta)));
+    updatePreview(true);
+   });
+  }
   for(const [key,inputId,kind] of [['font','captionFont','str'],['size','captionSize','num'],['weight','captionWeight','num'],['color','captionColor','str'],['outline','captionOutline','num'],['outlineColor','outlineColor','str'],['bottom','captionBottom','num'],['stretch','captionStretch','num'],['skew','captionSkew','num'],['rotate','captionRotate','num'],['animationSpeed','captionAnimSpeed','num'],['shadow','captionShadow','bool'],['background','captionBackground','bool'],['bgAlpha','bgAlpha','num'],['uppercase','captionUppercase','bool']]){
    $(inputId).addEventListener('input',e=>setStyle(key,kind==='bool'?e.target.checked:kind==='num'?Number(e.target.value):e.target.value));
   }
