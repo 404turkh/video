@@ -25,3 +25,6 @@ jobs:
           node --check studio-v06-storage.js
           node --check subtitle-timing.js
           node --check local-transcriber.js
+          node --check studio-v08-timing.js
+      - name: Check millisecond subtitle editing regressions
+        run: node tests/time-precision.test.cjs
