@@ -8,8 +8,10 @@ import asyncio
 import hmac
 import logging
 import os
+import secrets
 import subprocess
 import tempfile
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -29,6 +31,9 @@ ORIGINS = [x.strip().rstrip("/") for x in os.getenv(
 ).split(",") if x.strip()]
 EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mp3", ".m4a", ".wav", ".ogg", ".flac"}
 GATE = asyncio.Semaphore(1)
+JOBS: dict[str, dict] = {}
+JOB_TTL_SECONDS = 7200
+MAX_PENDING_JOBS = 3
 
 app = FastAPI(title="SubStudio transcription", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -169,3 +174,110 @@ async def transcribe(
                 os.unlink(saved_path)
             except FileNotFoundError:
                 pass
+
+
+def authenticated(access: str | None) -> None:
+    if len(ACCESS_KEY) < 16:
+        raise HTTPException(status_code=503, detail="Sunucuda erişim kodu ayarlanmamış.")
+    if not hmac.compare_digest(access or "", ACCESS_KEY):
+        raise HTTPException(status_code=401, detail="Erişim kodu yanlış.")
+
+
+def language_code(value: str) -> str:
+    choices = {"turkish": "tr", "arabic": "ar", "english": "en", "auto": "",
+               "tr": "tr", "ar": "ar", "en": "en"}
+    lang = choices.get(value)
+    if lang is None:
+        raise HTTPException(status_code=400, detail="Bilinmeyen konuşma dili.")
+    return lang
+
+
+def prune_jobs() -> None:
+    now = time.time()
+    for key, job in list(JOBS.items()):
+        if job.get("updated", 0) + JOB_TTL_SECONDS < now and job["status"] in ("done", "error"):
+            JOBS.pop(key, None)
+
+
+async def upload_to_temp(file: UploadFile) -> str:
+    suffix = Path(file.filename or "clip.mp4").suffix.lower()
+    if suffix not in EXTENSIONS:
+        raise HTTPException(status_code=415, detail="Desteklenmeyen video/ses uzantısı.")
+    filename = None
+    length = 0
+    try:
+        with tempfile.NamedTemporaryFile(prefix="substudio_", suffix=suffix, delete=False) as dest:
+            filename = dest.name
+            while True:
+                buffer = await file.read(1024 * 1024)
+                if not buffer:
+                    break
+                length += len(buffer)
+                if length > MAX_BYTES:
+                    raise HTTPException(status_code=413, detail=f"En fazla {MAX_BYTES//1048576} MB dosya yüklenebilir.")
+                dest.write(buffer)
+        if length < 1000:
+            raise HTTPException(status_code=400, detail="Dosyada yeterli ses/video verisi bulunamadı.")
+        return filename
+    except BaseException:
+        if filename:
+            try:
+                os.unlink(filename)
+            except FileNotFoundError:
+                pass
+        raise
+    finally:
+        await file.close()
+
+
+async def process_job(job_id: str, filename: str, language: str) -> None:
+    job = JOBS[job_id]
+    try:
+        async with GATE:
+            job.update(status="processing", updated=time.time())
+            result = await asyncio.to_thread(run_transcription, filename, language)
+            job.update(status="done", result=result, updated=time.time())
+    except ValueError as exc:
+        job.update(status="error", error=str(exc), updated=time.time())
+    except Exception:
+        LOG.exception("Async transcription job failed: %s", job_id)
+        job.update(status="error", error="Sunucu AI işlemi başarısız. Sunucu loglarını kontrol et.", updated=time.time())
+    finally:
+        try:
+            os.unlink(filename)
+        except FileNotFoundError:
+            pass
+
+
+@app.post("/jobs", status_code=202)
+async def start_job(
+    file: UploadFile = File(...),
+    language: str = Form("turkish"),
+    x_studio_key: str | None = Header(default=None),
+):
+    authenticated(x_studio_key)
+    lang = language_code(language)
+    prune_jobs()
+    pending = sum(1 for job in JOBS.values() if job["status"] in ("queued", "processing"))
+    if pending >= MAX_PENDING_JOBS:
+        raise HTTPException(status_code=429, detail="Sunucu meşgul. Biraz sonra tekrar dene.")
+    filename = await upload_to_temp(file)
+    job_id = secrets.token_urlsafe(20)
+    JOBS[job_id] = {"status": "queued", "updated": time.time()}
+    asyncio.create_task(process_job(job_id, filename, lang))
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.get("/jobs/{job_id}")
+async def job_status(job_id: str, x_studio_key: str | None = Header(default=None)):
+    authenticated(x_studio_key)
+    prune_jobs()
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Görev bulunamadı. Sunucu yeniden başlamış olabilir.")
+    result = {"status": job["status"]}
+    if job["status"] == "done":
+        result["result"] = job["result"]
+    elif job["status"] == "error":
+        result["error"] = job["error"]
+    return result
