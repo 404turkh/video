@@ -275,7 +275,7 @@
 
  function cueMessage(message){
   const target=$('timingStatus');
-  if(target){target.textContent=message;target.scrollIntoView?.({block:'nearest'})}
+  if(target)target.textContent=message;
  }
  function setCueTime(cueId,which,value){
   const i=state.cues.findIndex(c=>c.id===cueId);
