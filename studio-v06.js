@@ -1,4 +1,4 @@
-/* 焱 SubStudio 0.6.1 — Safari low-memory AI guard, recovery & independent text layers */
+/* 焱 SubStudio 0.7 — local or self-hosted long-video transcription; crash guard */
 (function(){
  'use strict';
  const $=id=>document.getElementById(id);
@@ -17,7 +17,7 @@
  };
  const defaultLayer=()=>({id:id(),text:'Yeni metin',start:0,end:3,x:50,y:16,font:'DM Sans',size:46,color:'#ffffff',outline:2,rotate:0,stretch:100,skew:0,animation:'fade',background:false});
  function id(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'item-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
- function freshState(){return {version:6,name:'Yeni video projesi',aspect:'original',density:'balanced',cues:[],rawWords:[],captionStyle:{...defaultStyle},layers:[],fileName:'',fileSize:0,savedAt:0}}
+ function freshState(){return {version:6,name:'Yeni video projesi',aspect:'original',density:'balanced',aiMode:'local',cues:[],rawWords:[],captionStyle:{...defaultStyle},layers:[],fileName:'',fileSize:0,savedAt:0}}
  let state=freshState(),mediaBlob=null,mediaURL=null,selectedLayerId=null,editCues=false,undoCues=null;
  let page='project',lastCueId='',lastLayerIds='',previewSampleUntil=0,saveTimer=0,saveSerial=Promise.resolve(),saveEpoch=0;
  let restored=false,notices=[];
@@ -30,11 +30,14 @@
  }
  function configureAI(){
   const ai=window.SubStudioLocalAI;
+  try{$('transcriptionServerUrl').value=localStorage.getItem('substudio-server-url-v07')||''}catch(_){}
+  try{$('transcriptionServerKey').value=sessionStorage.getItem('substudio-server-key-v07')||''}catch(_){}
   const ipad=!!ai?.isAppleTouch?.();
   const model=$('aiModel');
   const heavy=model.querySelector('option[value="accurate"]');
   if(heavy)heavy.disabled=ipad;
   if(ipad)model.value='fast';
+  if(ipad&&Number(vid.duration)>40){state.aiMode='server';$('aiMode').value='server';updateAIMode()}
   const safety=$('aiSafetyNote');
   if(safety)safety.textContent=ipad
     ?'iPad güvenli mod: Whisper Tiny, en fazla 40 saniye / 60 MB. Whisper Base bu cihazda bellek çökmesini önlemek için kapalıdır. Tiny de düşük bellekli cihazlarda kapanabilir.'
@@ -91,6 +94,7 @@
   if(typeof raw.name==='string')p.name=raw.name.slice(0,80);
   if(['original','9:16','1:1','16:9'].includes(raw.aspect))p.aspect=raw.aspect;
   if(['short','balanced','long'].includes(raw.density))p.density=raw.density;
+  if(['local','server'].includes(raw.aiMode))p.aiMode=raw.aiMode;
   p.cues=Array.isArray(raw.cues)?raw.cues.slice(0,2000).map(safeCue).filter(Boolean).sort((a,b)=>a.start-b.start):[];
   p.rawWords=Array.isArray(raw.rawWords)?raw.rawWords.slice(0,20000).filter(w=>w&&typeof w.word==='string'&&Number.isFinite(Number(w.start))&&Number.isFinite(Number(w.end))).map(w=>({word:w.word,start:Number(w.start),end:Number(w.end),estimated:!!w.estimated})):[];
   p.captionStyle=safeStyle(raw.captionStyle);
@@ -145,6 +149,9 @@
  function onVideoMetadata(){
   state.fileName=state.fileName||mediaBlob?.name||'';
   const duration=Number(vid.duration)||0;
+  if(window.SubStudioLocalAI?.isAppleTouch?.() && duration>40 && state.aiMode==='local'){
+   state.aiMode='server';$('aiMode').value='server';updateAIMode();queueSave();
+  }
   const width=vid.videoWidth,height=vid.videoHeight;
   const ratio=state.aspect==='original'&&width&&height?width+'/'+height:state.aspect==='original'?'9/16':state.aspect.replace(':','/');
   preview.style.aspectRatio=ratio;
@@ -417,51 +424,125 @@
   if(Number.isFinite(vid.duration)&&vid.duration>0)l.end=Math.max(l.start+.2,Math.min(vid.duration,l.end));
   state.layers.push(l);selectedLayerId=l.id;setPage('layers');renderLayers();queueSave();
  }
+
+ function serverURL(){
+  const value=$('transcriptionServerUrl').value.trim().replace(/\/+$/,'');
+  if(!value)throw new Error('Uzun videolar için transkripsiyon sunucusu henüz bağlı değil. Önce sunucuyu yayınlayıp HTTPS adresini gir.');
+  let url;
+  try{url=new URL(value)}catch(_){throw new Error('Sunucu adresi geçerli bir HTTPS adresi olmalı.')}
+  const localDev=/^(localhost|127\.0\.0\.1)$/i.test(url.hostname);
+  if(url.protocol!=='https:'&&!(localDev&&url.protocol==='http:'))
+   throw new Error('Güvenlik için HTTPS kullanan sunucu adresi gir.');
+  if(url.username||url.password||url.search||url.hash||url.pathname!=='/'&&url.pathname!=='')
+   throw new Error('Sunucunun sadece ana adresini gir (örnek: https://substudio.example.com).');
+  return url.origin;
+ }
+ function updateAIMode(){
+  const remote=$('aiMode').value==='server';
+  $('remoteSetup').hidden=!remote;
+  $('aiModel').disabled=remote;
+  $('aiSafetyNote').hidden=remote;
+  if(remote){
+   say('Sunucu modu: 1–10 dakikalık video için hazırlandı. Çalışması için önce sunucu kurulmalı ve bağlantı adresi girilmeli.');
+  }else{
+   say('Cihaz modu: iPad için 40 saniyelik güvenli sınır geçerlidir. Uzun videoda sunucu modunu seç.');
+  }
+ }
+ async function testServerConnection(){
+  try{
+   const url=serverURL();
+   $('serverConnectionStatus').textContent='Sunucu bağlantısı kontrol ediliyor…';
+   const controller=new AbortController();
+   const timer=setTimeout(()=>controller.abort(),12000);
+   try{
+    const res=await fetch(url+'/health',{signal:controller.signal,cache:'no-store'});
+    const data=await res.json();
+    if(!res.ok||data.service!=='substudio-transcription'||!data.ok)
+     throw new Error('Sunucu yanıtı beklenen SubStudio sunucusu değil.');
+    $('serverConnectionStatus').textContent='✓ Sunucu erişilebilir. '+Math.floor((Number(data.max_seconds)||600)/60)+' dakikaya kadar işleme yapılandırılmış. Erişim kodunu girerek altyazıyı başlat.';
+   }finally{clearTimeout(timer)}
+  }catch(err){
+   $('serverConnectionStatus').textContent='Bağlantı sağlanamadı: '+String(err?.message||err)+' · CORS veya sunucu ayarlarını kontrol et.';
+  }
+ }
+ async function remoteTranscription(source){
+  const url=serverURL();
+  const accessCode=$('transcriptionServerKey').value.trim();
+  if(accessCode.length<16)
+   throw new Error('Sunucu erişim kodu eksik. Bu OpenAI API anahtarı değildir; kendi sunucunun koruma kodudur.');
+  if(source.size>120*1048576)
+   throw new Error('Bu sunucu örneğinde videonun boyutu en fazla 120 MB olmalı.');
+  if(Number.isFinite(vid.duration)&&vid.duration>600)
+   throw new Error('Sunucu örneğinde video en fazla 10 dakika olabilir.');
+  const form=new FormData();
+  form.append('file',source,state.fileName||source.name||'video.mp4');
+  form.append('language',$('aiLanguage').value);
+  say('Video şifreli bağlantıyla kendi sunucuna yükleniyor. AI iPad belleğinde çalışmayacak. Sekmeyi kapatma…');
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),12*60*1000);
+  try{
+   const res=await fetch(url+'/transcribe',{
+    method:'POST',body:form,signal:controller.signal,
+    headers:{'X-Studio-Key':accessCode}
+   });
+   const data=await res.json().catch(()=>({}));
+   if(!res.ok)throw new Error(typeof data.detail==='string'?data.detail:'Sunucu yanıtı '+res.status);
+   if(!Array.isArray(data.words)||!data.words.length)
+    throw new Error('Sunucu zamanlı altyazı üretmedi. Konuşma algılanmamış olabilir.');
+   say('Sunucu '+data.words.length+' zamanlı parça üretti. Altyazılar düzenleniyor…');
+   return data.words;
+  }catch(err){
+   if(err?.name==='AbortError')throw new Error('Sunucu işlemi zaman aşımına uğradı. Daha güçlü sunucu veya kısa video dene.');
+   throw err;
+  }finally{clearTimeout(timer)}
+ }
  async function transcribe(){
   if(!mediaBlob){say('Önce Proje bölümünden sesli video yükle.');setPage('project');return}
+  if(vid.readyState<1){say('Video henüz hazır değil. Bir kez oynatıp dene.');return}
+  const mode=$('aiMode').value;
   const ai=window.SubStudioLocalAI;
-  if(!ai){say('AI modülü yüklenemedi, sayfayı yenile.');return}
-  if(vid.readyState<1){say('Video henüz açılmadı, bir kez oynatıp dene.');return}
-  const source=mediaBlob, selectedModel=$('aiModel').value;
-  try{ai.checkRequest(source,vid,selectedModel)}
-  catch(err){say('⚠ '+String(err?.message||err));return}
-  const b=$('autoCaption');
+  if(mode==='local'){
+   if(!ai){say('Cihazdaki AI modülü yüklenemedi, sayfayı yenile.');return}
+   try{ai.checkRequest(mediaBlob,vid,$('aiModel').value)}
+   catch(err){say('⚠ '+String(err?.message||err)+' 1–2 dakikalık video için Sunucuda seçeneğini kullan.');return}
+  }else{
+   try{serverURL()}catch(err){say('⚠ '+String(err?.message||err));return}
+  }
+  const source=mediaBlob,b=$('autoCaption');
   if(b.disabled)return;
-  b.disabled=true;b.textContent='⌛ Ses analiz ediliyor…';
+  b.disabled=true;b.textContent=mode==='server'?'⌛ Sunucu işliyor…':'⌛ Cihazda analiz ediliyor…';
   try{
-   // Call the localStorage-backed draft save SYNCHRONOUSLY on tap, before any await.
-   // Awaiting IndexedDB here could lose the Safari user activation required for video.play().
+   // Saved before starting. Browser crashes cannot be caught by JavaScript.
    const savePromise=Store.saveDraft(snapshot());
-   savePromise.then(result=>{
-    if(!result?.ok) setStatus('AI başlamadan önce taslak kaydedilemedi; Yedek indir kullan.','warn');
-   }).catch(()=>{setStatus('Taslak kaydı başarısız; Yedek indir kullan.','warn')});
-   markAI('1/3');
-   const words=await ai.transcribe(source,{
-    videoElement:vid,
-    language:$('aiLanguage').value,
-    model:selectedModel,
-    onStatus:msg=>{
-     say(msg);
-     const stage=String(msg).match(/^[123]\/3/)?.[0];
-     if(stage){
-      let last='';
-      try{last=JSON.parse(localStorage.getItem(AI_JOB_KEY)||'null')?.stage}catch(_){}
-      if(last!==stage)markAI(stage);
+   savePromise.then(v=>{if(!v?.ok)setStatus('AI öncesi taslak kaydedilemedi; Yedek indir kullan.','warn')}).catch(()=>{});
+   markAI(mode==='server'?'sunucu':'1/3');
+   const words=mode==='server'?
+    await remoteTranscription(source):
+    await ai.transcribe(source,{
+     videoElement:vid,
+     language:$('aiLanguage').value,
+     model:$('aiModel').value,
+     onStatus:msg=>{
+      say(msg);
+      const stage=String(msg).match(/^[123]\/3/)?.[0];
+      if(stage){
+       let last='';
+       try{last=JSON.parse(localStorage.getItem(AI_JOB_KEY)||'null')?.stage}catch(_){}
+       if(last!==stage)markAI(stage);
+      }
      }
-    }
-   });
-   if(source!==mediaBlob)throw Error('Video değiştirildi. AI sonucunu uygulamadım.');
+    });
+   if(source!==mediaBlob)throw Error('Video değiştirilmiş, AI sonucunu uygulamadım.');
    const result=Timing.createCues(words,{mode:state.density});
    if(!result.length)throw Error('Zamanlı konuşma bulunamadı.');
    if(state.cues.length&&!confirm('Yeni AI altyazıları eski altyazıların yerini alacak. Onaylıyor musun?'))return;
    state.rawWords=words.map(w=>({...w}));state.cues=result;editCues=false;undoCues=null;
    updateCues();queueSave();await saveNow();setPage('captions');
-   say('✓ '+result.length+' altyazı oluşturuldu. Proje taslağı kaydedildi; önemli projelerde Yedek indir kullan.');
+   say('✓ '+result.length+' altyazı oluşturuldu ve kaydedildi. Metni dinleyerek kontrol et.');
   }catch(err){
-   say('AI işlemi durdu: '+String(err?.message||err)+' Düzenlemelerin saklıdır.');
+   say('AI işlemi başarısız: '+String(err?.message||err)+'. Önceki altyazıların korunuyor.');
   }finally{
-   finishAI();
-   b.disabled=false;b.textContent='✦ Otomatik altyazı oluştur';
+   finishAI();b.disabled=false;b.textContent='✦ Otomatik altyazı oluştur';
   }
  }
  function refreshExportInfo(){
@@ -476,6 +557,8 @@
   $('projectName').value=state.name;
   $('captionDensity').value=state.density;
   $('aspectSelect').value=state.aspect;
+  $('aiMode').value=state.aiMode;
+  updateAIMode();
   syncStyleForm();updateCues();renderLayers();
   let media=null;try{media=await Store.loadMedia()}catch(_){}
   if(media?.blob&&(!state.fileName||media.name===state.fileName)){
@@ -510,7 +593,7 @@
     if(!confirm('Yedek açılacak. Mevcut taslaktaki altyazı/metinler değişecek. Devam?'))return;
     const previousName=state.fileName;
     state=normalize(raw);selectedLayerId=null;undoCues=null;editCues=false;
-    $('projectName').value=state.name;$('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;
+    $('projectName').value=state.name;$('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('aiMode').value=state.aiMode;updateAIMode();
     if(mediaBlob&&previousName!==state.fileName){setMedia(null);await Store.clearMedia();setMediaStatus('Yedekteki videoyu tekrar yüklemelisin.')}
     syncStyleForm();updateCues();renderLayers();onVideoMetadata();queueSave();await saveNow();
     setStatus('Proje yedeği açıldı','ok');
@@ -521,10 +604,18 @@
    vid.pause();state=freshState();mediaBlob=null;selectedLayerId=null;undoCues=null;editCues=false;
    if(mediaURL)URL.revokeObjectURL(mediaURL);mediaURL=null;
    await Store.clearAll();setMedia(null);$('projectName').value=state.name;
-   $('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
+   $('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('aiMode').value=state.aiMode;updateAIMode();syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
    queueSave();setPage('project');
   });
   $('autoCaption').addEventListener('click',()=>{void transcribe()});
+  $('aiMode').addEventListener('change',e=>{state.aiMode=e.target.value;updateAIMode();queueSave()});
+  $('transcriptionServerUrl').addEventListener('change',e=>{
+   try{localStorage.setItem('substudio-server-url-v07',e.target.value.trim())}catch(_){}
+  });
+  $('transcriptionServerKey').addEventListener('change',e=>{
+   try{sessionStorage.setItem('substudio-server-key-v07',e.target.value)}catch(_){}
+  });
+  $('testTranscriptionServer').addEventListener('click',()=>{void testServerConnection()});
   $('aiModel').addEventListener('change',()=>{
    if(window.SubStudioLocalAI?.isAppleTouch?.() && $('aiModel').value==='accurate'){
     $('aiModel').value='fast';
