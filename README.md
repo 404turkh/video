@@ -94,3 +94,33 @@ Sunucu kodu backend/transcription_server.py içindedir. Dockerfile ve requiremen
 GitHub Pages'in son yayın kayıtları başarılı görünse de Safari HTML'yi önbellekten gösterebilir. Sitenin bulunduğun URL'sini yeni bir sekmede sonuna ?v=07 ekleyerek aç; üstte **BETA 0.7** görmelisin. **Safari site verilerini silme**, yerel kayıtların kaybolabilir.
 
 GitHub'da Settings → Pages → Build and deployment ve Actions → pages build and deployment bölümleriyle yayınlanan kaynağı kontrol edebilirsin. Repo bir statik GitHub Pages sitesidir; bu ortam Python AI sunucusunu tek başına çalıştıramaz.
+
+
+## v0.8 — Milisaniye hassasiyetli altyazı zamanlaması
+
+Önceki sürümün zaman düzenleyicisi zamanları iki ondalığa yuvarlıyor (örneğin 00:00.158 → 00:00.16) ve `+ Satır ekle` düğmesi oynatma konumunu esas alarak mevcut altyazıların arasına girebiliyordu. Bu iki sorun düzeltildi.
+
+- **Zaman yazma:** Her altyazıda `00:00.158` gibi dakika:saniye.milisaniye biçiminde başlangıç ve bitiş metin kutuları var. `00:00:02.518` veya `2,518` biçimleri de kabul edilir.
+- **Hassas düzeltme:** Başlangıç ve bitiş için `Videodan al`, `−10 ms`, `+10 ms`; bütün satırı `0,01` veya `0,1` saniye ileri/geri kaydırma.
+- **Video oynatma konumu:** Ayrı bir hassas zaman kutusu ve `±10 ms` arama düğmeleri var; aralık kaydırıcısı da 0,001 saniye adımını kullanır.
+- **Satır ekleme:** Varsayılan `En sona ekle`, oynatma konumundan bağımsız olarak son altyazının sonrasına ekler. `Oynatma konumundaki boşluğa` isteğe bağlıdır; mevcut altyazının içine eklenmez.
+- **Satırdan sonra:** Her satırdaki `+ Sonrasına` düğmesi sonraki altyazıya kadar **boşluk varsa** yeni satır oluşturur. Boşluk yoksa var olan altyazıları otomatik kaydırıp senkronu bozmak yerine uyarır.
+- **Çakışma denetimi:** Bir altyazının başlangıcı öncekinin bitişiyle veya bitişi sonrakinin başlangıcıyla tam aynı olabilir; ama satırlar birbirinin üstüne binemez.
+- **Saatli metin yapıştırma:** `Zamanlı metin listesini yapıştır` bölümüne `00:00.158 – 00:02.518` ve alt satırda metin şeklinde çok sayıda altyazıyı yapıştırabilirsin. Metin ve milisaniyeler korunur. Eski altyazıları değiştirmeden önce onay sorulur.
+- **SRT kaydı:** SRT dosyaları üç milisaniye basamağını korur; JSON proje taslağı da saniyeleri 0,001 hassasiyetle saklar.
+
+### Örnek
+
+```text
+00:00.158 – 00:02.518
+Bismillahirrahmânirrahîm.
+
+00:03.738 – 00:05.720
+Hamd, âlemlerin Rabbi,
+```
+
+Yukarıdaki örnek, kullanıcının sağladığı metni gösterir; herhangi bir Kur'an meali doğrulaması anlamına gelmez.
+
+**Testler:** `node tests/time-precision.test.cjs` komutu verilen 11 satırı, virgül/nokta ayracı, bitişik zamanları, çakışma denetimini ve güvenli eklemeyi denetler. GitHub Actions doğrulama iş akışı bu testi otomatik çalıştırır.
+
+**Önemli:** Milisaniye olarak yazılan zamanlar metadata/SRT/Canvas zamanlamasında korunur, ancak Safari'nin gerçek görüntü kare hızı ve oynatma motoru nedeniyle ekranda **1 ms görsel doğruluk garanti edilemez** (30 FPS video yaklaşık 33 ms'lik karelerden oluşur). Gerekirse videoyu dinleyerek son ayarı yap.
