@@ -32,6 +32,7 @@
   const ai=window.SubStudioLocalAI;
   try{$('transcriptionServerUrl').value=localStorage.getItem('substudio-server-url-v07')||''}catch(_){}
   try{$('transcriptionServerKey').value=sessionStorage.getItem('substudio-server-key-v07')||''}catch(_){}
+  $('resumeServerJob').hidden=!loadPendingJob();
   const ipad=!!ai?.isAppleTouch?.();
   const model=$('aiModel');
   const heavy=model.querySelector('option[value="accurate"]');
@@ -465,36 +466,95 @@
    $('serverConnectionStatus').textContent='Bağlantı sağlanamadı: '+String(err?.message||err)+' · CORS veya sunucu ayarlarını kontrol et.';
   }
  }
+ const PENDING_JOB='substudio-server-job-v07';
+ function loadPendingJob(){
+  try{
+   const data=JSON.parse(sessionStorage.getItem(PENDING_JOB)||'null');
+   return data&&data.job&&data.url&&data.file?data:null;
+  }catch(_){return null}
+ }
+ function rememberPendingJob(data){
+  try{sessionStorage.setItem(PENDING_JOB,JSON.stringify(data))}catch(_){}
+  $('resumeServerJob').hidden=false;
+ }
+ function forgetPendingJob(){
+  try{sessionStorage.removeItem(PENDING_JOB)}catch(_){}
+  $('resumeServerJob').hidden=true;
+ }
+ async function pollServerJob(job,url,accessCode){
+  const deadline=Date.now()+12*60*1000;
+  while(Date.now()<deadline){
+   const res=await fetch(url+'/jobs/'+encodeURIComponent(job),{
+    headers:{'X-Studio-Key':accessCode},cache:'no-store'
+   });
+   const data=await res.json().catch(()=>({}));
+   if(!res.ok){
+    if(res.status===404)forgetPendingJob();
+    throw new Error(typeof data.detail==='string'?data.detail:'Sunucu görev durumu alınamadı: '+res.status);
+   }
+   if(data.status==='done'){
+    if(!Array.isArray(data.result?.words)||!data.result.words.length)
+     throw new Error('Sunucu kelime zamanları döndürmedi.');
+    const words=data.result.words;
+    forgetPendingJob();
+    say('✓ Sunucudaki işlem tamamlandı. '+words.length+' kelime/parça geldi.');
+    return words;
+   }
+   if(data.status==='error'){
+    forgetPendingJob();
+    throw new Error(data.error||'Sunucu AI işlemi başarısız.');
+   }
+   say('Sunucu işliyor: '+(data.status==='queued'?'Sırada bekliyor':'Konuşma tanınıyor')+'. iPad model çalıştırmıyor.');
+   await new Promise(resolve=>setTimeout(resolve,2500));
+  }
+  throw new Error('Sunucu görevi çok uzadı. İşlem sürüyorsa Sunucudaki altyazı işlemini sürdür düğmesini kullan.');
+ }
  async function remoteTranscription(source){
   const url=serverURL();
   const accessCode=$('transcriptionServerKey').value.trim();
-  if(accessCode.length<16)
-   throw new Error('Sunucu erişim kodu eksik. Bu OpenAI API anahtarı değildir; kendi sunucunun koruma kodudur.');
-  if(source.size>120*1048576)
-   throw new Error('Bu sunucu örneğinde videonun boyutu en fazla 120 MB olmalı.');
-  if(Number.isFinite(vid.duration)&&vid.duration>600)
-   throw new Error('Sunucu örneğinde video en fazla 10 dakika olabilir.');
+  if(accessCode.length<16)throw new Error('Sunucu erişim kodu eksik. Bu bir OpenAI API anahtarı değildir.');
+  if(source.size>120*1048576)throw new Error('Bu sunucuda en fazla 120 MB dosya destekleniyor.');
+  if(Number.isFinite(vid.duration)&&vid.duration>600)throw new Error('Bu sunucuda en fazla 10 dakikalık video destekleniyor.');
   const form=new FormData();
   form.append('file',source,state.fileName||source.name||'video.mp4');
   form.append('language',$('aiLanguage').value);
-  say('Video şifreli bağlantıyla kendi sunucuna yükleniyor. AI iPad belleğinde çalışmayacak. Sekmeyi kapatma…');
+  say('Video kendi sunucuna yükleniyor; model iPad belleğinde çalışmayacak…');
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),12*60*1000);
+  const timeout=setTimeout(()=>controller.abort(),180000);
+  let response,data;
   try{
-   const res=await fetch(url+'/transcribe',{
-    method:'POST',body:form,signal:controller.signal,
-    headers:{'X-Studio-Key':accessCode}
+   response=await fetch(url+'/jobs',{
+    method:'POST',body:form,signal:controller.signal,headers:{'X-Studio-Key':accessCode}
    });
-   const data=await res.json().catch(()=>({}));
-   if(!res.ok)throw new Error(typeof data.detail==='string'?data.detail:'Sunucu yanıtı '+res.status);
-   if(!Array.isArray(data.words)||!data.words.length)
-    throw new Error('Sunucu zamanlı altyazı üretmedi. Konuşma algılanmamış olabilir.');
-   say('Sunucu '+data.words.length+' zamanlı parça üretti. Altyazılar düzenleniyor…');
-   return data.words;
+   data=await response.json().catch(()=>({}));
   }catch(err){
-   if(err?.name==='AbortError')throw new Error('Sunucu işlemi zaman aşımına uğradı. Daha güçlü sunucu veya kısa video dene.');
+   if(err?.name==='AbortError')throw new Error('Video yükleme zaman aşımı. İnternet veya sunucu bağlantısını kontrol et.');
    throw err;
-  }finally{clearTimeout(timer)}
+  }finally{clearTimeout(timeout)}
+  if(!response.ok||!data.job_id)
+   throw new Error(typeof data.detail==='string'?data.detail:'Sunucu görevi oluşturulamadı: '+response.status);
+  rememberPendingJob({job:data.job_id,url,file:state.fileName,created:Date.now()});
+  return pollServerJob(data.job_id,url,accessCode);
+ }
+ async function resumeServerJob(){
+  const job=loadPendingJob();
+  if(!job){say('Sürdürülecek sunucu görevi bulunamadı.');return}
+  const key=$('transcriptionServerKey').value.trim();
+  if(key.length<16){say('Önce sunucu erişim kodunu gir.');return}
+  if(state.fileName && state.fileName!==job.file){
+   say('Bu görev '+job.file+' videosuna ait. Önce doğru projeyi aç.');return;
+  }
+  const b=$('resumeServerJob');b.disabled=true;
+  try{
+   const words=await pollServerJob(job.job,job.url,key);
+   const result=Timing.createCues(words,{mode:state.density});
+   if(!result.length)throw new Error('Zamanlı altyazı bulunamadı.');
+   if(state.cues.length&&!confirm('Sunucudan gelen altyazılar mevcut satırların yerini alacak. Devam?'))return;
+   state.rawWords=words.map(w=>({...w}));state.cues=result;editCues=false;undoCues=null;
+   updateCues();queueSave();await saveNow();setPage('captions');
+   say('✓ Sunucu görevi geri alındı, '+result.length+' altyazı kaydedildi.');
+  }catch(err){say('Sunucu görevi sürdürülemedi: '+String(err?.message||err))}
+  finally{b.disabled=false}
  }
  async function transcribe(){
   if(!mediaBlob){say('Önce Proje bölümünden sesli video yükle.');setPage('project');return}
@@ -616,6 +676,7 @@
    try{sessionStorage.setItem('substudio-server-key-v07',e.target.value)}catch(_){}
   });
   $('testTranscriptionServer').addEventListener('click',()=>{void testServerConnection()});
+  $('resumeServerJob').addEventListener('click',()=>{void resumeServerJob()});
   $('aiModel').addEventListener('change',()=>{
    if(window.SubStudioLocalAI?.isAppleTouch?.() && $('aiModel').value==='accurate'){
     $('aiModel').value='fast';
