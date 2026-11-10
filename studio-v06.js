@@ -1,4 +1,4 @@
-/* 焱 SubStudio 0.6 — segmented editor, autosave, AI captions & independent text layers */
+/* 焱 SubStudio 0.6.1 — Safari low-memory AI guard, recovery & independent text layers */
 (function(){
  'use strict';
  const $=id=>document.getElementById(id);
@@ -21,6 +21,33 @@
  let state=freshState(),mediaBlob=null,mediaURL=null,selectedLayerId=null,editCues=false,undoCues=null;
  let page='project',lastCueId='',lastLayerIds='',previewSampleUntil=0,saveTimer=0,saveSerial=Promise.resolve(),saveEpoch=0;
  let restored=false,notices=[];
+ const AI_JOB_KEY='substudio-ai-progress-v061';
+ function markAI(stage){
+  try{localStorage.setItem(AI_JOB_KEY,JSON.stringify({stage,time:Date.now(),file:state.fileName||''}))}catch(_){}
+ }
+ function finishAI(){
+  try{localStorage.removeItem(AI_JOB_KEY)}catch(_){}
+ }
+ function configureAI(){
+  const ai=window.SubStudioLocalAI;
+  const ipad=!!ai?.isAppleTouch?.();
+  const model=$('aiModel');
+  const heavy=model.querySelector('option[value="accurate"]');
+  if(heavy)heavy.disabled=ipad;
+  if(ipad)model.value='fast';
+  const safety=$('aiSafetyNote');
+  if(safety)safety.textContent=ipad
+    ?'iPad güvenli mod: Whisper Tiny, en fazla 30 saniye / 60 MB. Whisper Base bu cihazda bellek çökmesini önlemek için kapalıdır. Tiny de düşük bellekli cihazlarda kapanabilir.'
+    :'Masaüstünde daha doğru Whisper Base seçilebilir. Bu işlem yüksek bellek kullanır. Düzenlemelerini önce yedekle.';
+  let pending=null;
+  try{pending=JSON.parse(localStorage.getItem(AI_JOB_KEY)||'null')}catch(_){}
+  if(pending){
+   finishAI();
+   if(Date.now()-Number(pending.time||0)<24*3600*1000){
+    say('⚠ Önceki AI işlemi '+String(pending.stage||'')+' aşamasında tamamlanmamış. Safari bellek nedeniyle yeniden yüklemiş olabilir. Proje taslağını kontrol et; iPad için Tiny / 30 sn sınırı etkin.');
+   }
+  }
+ }
  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,Number(v)||0));
  const round=n=>Math.round(n*100)/100;
  const time=n=>{n=Math.max(0,Math.floor(Number(n)||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')};
@@ -392,22 +419,50 @@
  }
  async function transcribe(){
   if(!mediaBlob){say('Önce Proje bölümünden sesli video yükle.');setPage('project');return}
-  if(!window.SubStudioLocalAI){say('AI modülü yüklenemedi, sayfayı yenile.');return}
+  const ai=window.SubStudioLocalAI;
+  if(!ai){say('AI modülü yüklenemedi, sayfayı yenile.');return}
   if(vid.readyState<1){say('Video henüz açılmadı, bir kez oynatıp dene.');return}
-  if(Number.isFinite(vid.duration)&&vid.duration>90){say('Cihaz içi AI için 90 saniyeyi geçmeyen video kullan.');return}
-  const b=$('autoCaption'),source=mediaBlob;
+  const source=mediaBlob, selectedModel=$('aiModel').value;
+  try{ai.checkRequest(source,vid,selectedModel)}
+  catch(err){say('⚠ '+String(err?.message||err));return}
+  const b=$('autoCaption');
+  if(b.disabled)return;
   b.disabled=true;b.textContent='⌛ Ses analiz ediliyor…';
   try{
-   const words=await window.SubStudioLocalAI.transcribe(source,{videoElement:vid,language:$('aiLanguage').value,model:$('aiModel').value,onStatus:msg=>say(msg)});
+   // Call the localStorage-backed draft save SYNCHRONOUSLY on tap, before any await.
+   // Awaiting IndexedDB here could lose the Safari user activation required for video.play().
+   const savePromise=Store.saveDraft(snapshot());
+   savePromise.then(result=>{
+    if(!result?.ok) setStatus('AI başlamadan önce taslak kaydedilemedi; Yedek indir kullan.','warn');
+   }).catch(()=>{setStatus('Taslak kaydı başarısız; Yedek indir kullan.','warn')});
+   markAI('1/3');
+   const words=await ai.transcribe(source,{
+    videoElement:vid,
+    language:$('aiLanguage').value,
+    model:selectedModel,
+    onStatus:msg=>{
+     say(msg);
+     const stage=String(msg).match(/^[123]\/3/)?.[0];
+     if(stage){
+      let last='';
+      try{last=JSON.parse(localStorage.getItem(AI_JOB_KEY)||'null')?.stage}catch(_){}
+      if(last!==stage)markAI(stage);
+     }
+    }
+   });
    if(source!==mediaBlob)throw Error('Video değiştirildi. AI sonucunu uygulamadım.');
    const result=Timing.createCues(words,{mode:state.density});
    if(!result.length)throw Error('Zamanlı konuşma bulunamadı.');
    if(state.cues.length&&!confirm('Yeni AI altyazıları eski altyazıların yerini alacak. Onaylıyor musun?'))return;
    state.rawWords=words.map(w=>({...w}));state.cues=result;editCues=false;undoCues=null;
    updateCues();queueSave();await saveNow();setPage('captions');
-   say('✓ '+result.length+' satır oluşturuldu ve taslağa kaydedildi. Metni kontrol et.');
-  }catch(err){say('AI altyazı hatası: '+String(err?.message||err))}
-  finally{b.disabled=false;b.textContent='✦ Otomatik altyazı oluştur'}
+   say('✓ '+result.length+' altyazı oluşturuldu. Proje taslağı kaydedildi; önemli projelerde Yedek indir kullan.');
+  }catch(err){
+   say('AI işlemi durdu: '+String(err?.message||err)+' Düzenlemelerin saklıdır.');
+  }finally{
+   finishAI();
+   b.disabled=false;b.textContent='✦ Otomatik altyazı oluştur';
+  }
  }
  function refreshExportInfo(){
   const label=state.fileName||'Video yok',duration=Number(vid.duration)||0;
@@ -433,6 +488,7 @@
   restored=true;
   setStatus(saved?'Önceki taslak geri yüklendi':'Yeni proje hazır','ok');
   if(saved)await saveNow();
+  configureAI();
   setPage(location.hash.replace('#','')||'project');
   updatePreview(true);
  }
@@ -469,6 +525,12 @@
    queueSave();setPage('project');
   });
   $('autoCaption').addEventListener('click',()=>{void transcribe()});
+  $('aiModel').addEventListener('change',()=>{
+   if(window.SubStudioLocalAI?.isAppleTouch?.() && $('aiModel').value==='accurate'){
+    $('aiModel').value='fast';
+    say('iPad Safari üzerinde Whisper Base bellek riski nedeniyle kapalı. Güvenli mod (Whisper Tiny) seçildi.');
+   }
+  });
   $('captionDensity').addEventListener('change',e=>{state.density=e.target.value;queueSave()});
   $('reflowCues').addEventListener('click',reflow);
   $('importSRT').addEventListener('click',()=>$('srtFile').click());
