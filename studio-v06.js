@@ -1,7 +1,8 @@
-/* 焱 SubStudio 0.7 — local or self-hosted long-video transcription; crash guard */
+/* 焱 SubStudio 0.8 — millisecond timing, safe insertion and pasted subtitle timelines */
 (function(){
  'use strict';
  const $=id=>document.getElementById(id);
+ const Precise=window.SubStudioPreciseTime;
  const vid=$('video'),preview=$('previewFrame'),captionBox=$('captionStage'),captionText=$('captionText'),layerStage=$('layersStage');
  const Store=window.SubStudioStore, Timing=window.SubStudioTiming;
  const FONT_LIST=['DM Sans','Poppins','Montserrat','Anton','Bebas Neue','Oswald','Impact','Georgia','Amiri','Noto Sans Arabic'];
@@ -17,7 +18,7 @@
  };
  const defaultLayer=()=>({id:id(),text:'Yeni metin',start:0,end:3,x:50,y:16,font:'DM Sans',size:46,color:'#ffffff',outline:2,rotate:0,stretch:100,skew:0,animation:'fade',background:false});
  function id(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'item-'+Date.now()+'-'+Math.random().toString(36).slice(2)}
- function freshState(){return {version:6,name:'Yeni video projesi',aspect:'original',density:'balanced',aiMode:'local',cues:[],rawWords:[],captionStyle:{...defaultStyle},layers:[],fileName:'',fileSize:0,savedAt:0}}
+ function freshState(){return {version:6,name:'Yeni video projesi',aspect:'original',density:'balanced',aiMode:'local',insertMode:'append',cues:[],rawWords:[],captionStyle:{...defaultStyle},layers:[],fileName:'',fileSize:0,savedAt:0}}
  let state=freshState(),mediaBlob=null,mediaURL=null,selectedLayerId=null,editCues=false,undoCues=null;
  let page='project',lastCueId='',lastLayerIds='',previewSampleUntil=0,saveTimer=0,saveSerial=Promise.resolve(),saveEpoch=0;
  let restored=false,notices=[];
@@ -53,7 +54,7 @@
   }
  }
  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,Number(v)||0));
- const round=n=>Math.round(n*100)/100;
+ const round=n=>Math.round(n*1000)/1000;
  const time=n=>{n=Math.max(0,Math.floor(Number(n)||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')};
  const setStatus=(message,kind='')=>{const el=$('saveStatus');el.textContent=message;el.className='save-status '+kind};
  const setMediaStatus=msg=>{$('mediaSaveStatus').textContent=msg};
@@ -96,6 +97,7 @@
   if(['original','9:16','1:1','16:9'].includes(raw.aspect))p.aspect=raw.aspect;
   if(['short','balanced','long'].includes(raw.density))p.density=raw.density;
   if(['local','server'].includes(raw.aiMode))p.aiMode=raw.aiMode;
+  if(['append','playhead'].includes(raw.insertMode))p.insertMode=raw.insertMode;
   p.cues=Array.isArray(raw.cues)?raw.cues.slice(0,2000).map(safeCue).filter(Boolean).sort((a,b)=>a.start-b.start):[];
   p.rawWords=Array.isArray(raw.rawWords)?raw.rawWords.slice(0,20000).filter(w=>w&&typeof w.word==='string'&&Number.isFinite(Number(w.start))&&Number.isFinite(Number(w.end))).map(w=>({word:w.word,start:Number(w.start),end:Number(w.end),estimated:!!w.estimated})):[];
   p.captionStyle=safeStyle(raw.captionStyle);
@@ -158,7 +160,7 @@
   preview.style.aspectRatio=ratio;
   vid.style.objectFit=state.aspect==='original'?'contain':'cover';
   $('previewInfo').textContent=width&&height?width+'×'+height:'Video';
-  $('timeDur').textContent=time(duration);
+  $('timeDur').textContent=Precise.formatClock(duration);
   $('seek').max=duration||1;
   refreshExportInfo();
  }
@@ -265,7 +267,8 @@
  function updatePreview(force=false){
   const t=vid.currentTime||0;
   showCue(t,force);showLayers(t,force);
-  $('timeCur').textContent=time(t);
+  $('timeCur').textContent=Precise.formatClock(t);
+  if(document.activeElement!==$('playheadClock'))$('playheadClock').value=Precise.formatClock(t);
   $('seek').value=Number.isFinite(t)?t:0;
   $('playPause').textContent=vid.paused?'▶':'Ⅱ';
  }
@@ -617,6 +620,7 @@
   $('projectName').value=state.name;
   $('captionDensity').value=state.density;
   $('aspectSelect').value=state.aspect;
+  $('cueInsertMode').value=state.insertMode;
   $('aiMode').value=state.aiMode;
   updateAIMode();
   syncStyleForm();updateCues();renderLayers();
@@ -653,7 +657,7 @@
     if(!confirm('Yedek açılacak. Mevcut taslaktaki altyazı/metinler değişecek. Devam?'))return;
     const previousName=state.fileName;
     state=normalize(raw);selectedLayerId=null;undoCues=null;editCues=false;
-    $('projectName').value=state.name;$('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('aiMode').value=state.aiMode;updateAIMode();
+    $('projectName').value=state.name;$('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('cueInsertMode').value=state.insertMode;$('aiMode').value=state.aiMode;updateAIMode();
     if(mediaBlob&&previousName!==state.fileName){setMedia(null);await Store.clearMedia();setMediaStatus('Yedekteki videoyu tekrar yüklemelisin.')}
     syncStyleForm();updateCues();renderLayers();onVideoMetadata();queueSave();await saveNow();
     setStatus('Proje yedeği açıldı','ok');
@@ -664,7 +668,7 @@
    vid.pause();state=freshState();mediaBlob=null;selectedLayerId=null;undoCues=null;editCues=false;
    if(mediaURL)URL.revokeObjectURL(mediaURL);mediaURL=null;
    await Store.clearAll();setMedia(null);$('projectName').value=state.name;
-   $('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('aiMode').value=state.aiMode;updateAIMode();syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
+   $('captionDensity').value=state.density;$('aspectSelect').value=state.aspect;$('cueInsertMode').value=state.insertMode;$('aiMode').value=state.aiMode;updateAIMode();syncStyleForm();updateCues();renderLayers();setMediaStatus('Yeni proje oluşturuldu.');
    queueSave();setPage('project');
   });
   $('autoCaption').addEventListener('click',()=>{void transcribe()});
