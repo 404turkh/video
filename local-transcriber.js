@@ -234,6 +234,16 @@
     return modelCache.get(selected);
   }
 
+  async function disposeModels(){
+    const loaded=[...modelCache.values()];
+    modelCache.clear();
+    for(const pending of loaded){
+      try{
+        const pipe=await pending;
+        if(pipe&&typeof pipe.dispose==='function')await pipe.dispose();
+      }catch(_){}
+    }
+  }
   function normalizeResult(response) {
     const chunks = Array.isArray(response?.chunks) ? response.chunks : [];
     return chunks.map(chunk => ({
@@ -248,34 +258,38 @@
     const report = typeof options.onStatus === 'function' ? options.onStatus : () => {};
     const model = options.model || (isAppleTouch()?'fast':'accurate');
     const limit = checkRequest(file,options.videoElement,model);
-    if(limit.mobile) report('iPad güvenli mod: Tiny / '+limit.seconds+' saniye sınırı. Model Safari belleğinde çalışacağı için yine de sonuç garanti değildir.');
+    if(limit.mobile) report('iPad güvenli mod: Tiny / '+limit.seconds+' saniye sınırı. Model Safari belleğinde çalışacağı için sonuç garanti değildir.');
     const audio = await captureAudio(file, options.videoElement, report);
     const pipe = await loadModel(report, model);
-    report('3/3 · Konuşma cihazında tanınıyor. Safari sekmesini açık tut…');
-    const language = options.language && options.language !== 'auto' ? options.language : 'turkish';
-    // Whisper must TRANSCRIBE, never TRANSLATE to English.
-    // Explicit language avoids unreliable short-clip language auto-detection.
-    const config = { task: 'transcribe', language,
-      return_timestamps: 'word', chunk_length_s: 30, stride_length_s: 5 };
-    let response;
     try {
-      response = await pipe(audio, config);
-    } catch (err) {
-      throw new Error('Konuşma tanıma başarısız: ' + String(err?.message || err));
+      report('3/3 · Konuşma cihazında tanınıyor. Safari sekmesini açık tut…');
+      const language = options.language && options.language !== 'auto' ? options.language : 'turkish';
+      const config = { task: 'transcribe', language,
+        return_timestamps: 'word', chunk_length_s: limit.mobile?15:30, stride_length_s: limit.mobile?2:5 };
+      let response;
+      try {
+        response = await pipe(audio, config);
+      } catch (err) {
+        throw new Error('Konuşma tanıma başarısız: ' + String(err?.message || err));
+      }
+      let words = normalizeResult(response);
+      if (!words.length) {
+        report('3/3 · Kelime zamanları boş; cümle zamanları deneniyor…');
+        const fallback = { ...config, return_timestamps: true };
+        try { words = normalizeResult(await pipe(audio, fallback)); }
+        catch (err) { throw new Error('Altyazı zamanları alınamadı: ' + String(err?.message || err)); }
+      }
+      if (!words.length) {
+        throw new Error('Ses işlendi ama zamanlı konuşma bulunamadı. Ses net olmayabilir.');
+      }
+      return words;
+    } finally {
+      if(limit.mobile){
+        report('AI belleği temizleniyor…');
+        await disposeModels();
+      }
     }
-    let words = normalizeResult(response);
-    // Some runtimes lack word-level timestamp support: retry with segment-level timings.
-    if (!words.length) {
-      report('3/3 · Kelime zamanları boş; cümle zamanları deneniyor…');
-      const fallback = { ...config, return_timestamps: true };
-      try { words = normalizeResult(await pipe(audio, fallback)); }
-      catch (err) { throw new Error('Altyazı zamanları alınamadı: ' + String(err?.message || err)); }
-    }
-    if (!words.length) {
-      throw new Error('Ses işlendi ama zamanlı konuşma bulunamadı. Ses net olmayabilir.');
-    }
-    return words;
   }
 
-  window.SubStudioLocalAI = { getAudioGraph, transcribe, isAppleTouch, limits, checkRequest };
+  window.SubStudioLocalAI = { getAudioGraph, transcribe, isAppleTouch, limits, checkRequest, disposeModels };
 })();
