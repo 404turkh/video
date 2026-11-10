@@ -1,4 +1,4 @@
-/* 焱 SubStudio 0.2.1 — iPad Safari uyumuna yönelik API'siz yerel konuşma tanıma.
+/* 焱 SubStudio 0.6.1 — iPad Safari düşük bellek güvenlik modu.
    Dosya sunucuya yüklenmez; AI modeli ilk kullanımda CDN + Hugging Face'ten indirilir. */
 (() => {
   'use strict';
@@ -7,6 +7,30 @@
   const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
   const MAX_SECONDS = 90;
   const MAX_FILE_BYTES = 120 * 1024 * 1024;
+  const IPAD_MAX_SECONDS = 30;
+  const IPAD_MAX_FILE_BYTES = 60 * 1024 * 1024;
+  function isAppleTouch() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/.test(ua) ||
+      ((/Macintosh/.test(ua) || navigator.platform === 'MacIntel') && navigator.maxTouchPoints > 1);
+  }
+  function limits(){
+    return isAppleTouch() ? {seconds:IPAD_MAX_SECONDS,bytes:IPAD_MAX_FILE_BYTES,mobile:true}
+                          : {seconds:MAX_SECONDS,bytes:MAX_FILE_BYTES,mobile:false};
+  }
+  function checkRequest(file,video,model){
+    const bound=limits();
+    if(bound.mobile && model==='accurate')throw new Error(
+      'Whisper Base iPad Safari belleğini taşırabiliyor. Cihazın kapanmaması için Base kapalı; Hızlı / iPad Güvenli modunu kullan.'
+    );
+    if(!file||file.size>bound.bytes)throw new Error(
+      'Bu cihazdaki güvenli AI denemesinde en fazla '+Math.round(bound.bytes/1048576)+' MB video kullanılabilir.'
+    );
+    if(video?.duration&&Number.isFinite(video.duration)&&video.duration>bound.seconds)
+      throw new Error('Bu cihazda AI için en fazla '+bound.seconds+' saniyelik video kullan. Daha uzun video için başka bir işleme yöntemi gerekir.');
+    return bound;
+  }
   const modelCache = new Map();
   let graph = null;
 
@@ -50,14 +74,15 @@
 
   // The *visible main video* is essential: Safari may pause hidden/off-screen media.
   function captureAudio(file, video, report) {
-    if (!file || file.size > MAX_FILE_BYTES) {
-      return Promise.reject(new Error('Bu denemede en fazla 120 MB video kullan.'));
+    const guard = limits();
+    if (!file || file.size > guard.bytes) {
+      return Promise.reject(new Error('Güvenli AI sınırı: en fazla '+Math.round(guard.bytes/1048576)+' MB video kullan.'));
     }
     if (!video || video.readyState < 1) {
       return Promise.reject(new Error('Video henüz hazır değil. Bir kez oynatıp tekrar dene.'));
     }
-    if (Number.isFinite(video.duration) && video.duration > MAX_SECONDS) {
-      return Promise.reject(new Error('Yerel AI denemesi 90 saniyeyle sınırlı. Daha kısa video yükle.'));
+    if (Number.isFinite(video.duration) && video.duration > guard.seconds) {
+      return Promise.reject(new Error('Bu cihazda AI '+guard.seconds+' saniyeyle sınırlı. Daha kısa video yükle.'));
     }
     let audio;
     try {
@@ -135,7 +160,7 @@
       chunks.push(out);
       sampleCount += out.length;
       event.outputBuffer.getChannelData(0).fill(0); // processor remains active without double audio
-      if (sampleCount / ctx.sampleRate > MAX_SECONDS + 1) finish();
+      if (sampleCount / ctx.sampleRate > guard.seconds + 1) finish();
     };
 
     video.addEventListener('ended', onEnded);
@@ -151,7 +176,7 @@
         lastReported = seconds;
         report('1/3 · Video sesi okunuyor: ' + seconds + ' sn');
       }
-      if (seconds > MAX_SECONDS) finish(new Error('90 saniyelik sınır aşıldı.'));
+      if (seconds > guard.seconds) finish(new Error(guard.seconds+' saniyelik güvenli süre sınırı aşıldı.'));
     });
 
     report('1/3 · Video sesi ekrandaki oynatıcıdan okunuyor…');
@@ -175,7 +200,10 @@
   }
 
   async function loadModel(report, modelChoice = 'accurate') {
-    const selected = Object.prototype.hasOwnProperty.call(MODELS, modelChoice) ? modelChoice : 'accurate';
+    const selected = Object.prototype.hasOwnProperty.call(MODELS, modelChoice) ? modelChoice : (isAppleTouch()?'fast':'accurate');
+    if (isAppleTouch() && selected==='accurate') {
+      throw new Error('iPad üzerinde Whisper Base engellendi; sayfanın çökmesini önlemek için Whisper Tiny seç.');
+    }
     if (!modelCache.has(selected)) {
       const pending = (async () => {
         report('2/3 · ' + (selected === 'accurate' ? 'Daha doğru Whisper Base' : 'Hızlı Whisper Tiny') + ' modeli indiriliyor. İlk kullanımda internet ve boş bellek gerekir…');
@@ -218,8 +246,11 @@
 
   async function transcribe(file, options = {}) {
     const report = typeof options.onStatus === 'function' ? options.onStatus : () => {};
+    const model = options.model || (isAppleTouch()?'fast':'accurate');
+    const limit = checkRequest(file,options.videoElement,model);
+    if(limit.mobile) report('iPad güvenli mod: Tiny / '+limit.seconds+' saniye sınırı. Model Safari belleğinde çalışacağı için yine de sonuç garanti değildir.');
     const audio = await captureAudio(file, options.videoElement, report);
-    const pipe = await loadModel(report, options.model || 'accurate');
+    const pipe = await loadModel(report, model);
     report('3/3 · Konuşma cihazında tanınıyor. Safari sekmesini açık tut…');
     const language = options.language && options.language !== 'auto' ? options.language : 'turkish';
     // Whisper must TRANSCRIBE, never TRANSLATE to English.
@@ -246,5 +277,5 @@
     return words;
   }
 
-  window.SubStudioLocalAI = { getAudioGraph, transcribe };
+  window.SubStudioLocalAI = { getAudioGraph, transcribe, isAppleTouch, limits, checkRequest };
 })();
