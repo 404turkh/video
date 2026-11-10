@@ -13,7 +13,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, UploadFile, File
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from faster_whisper import WhisperModel
 
@@ -119,7 +119,7 @@ def health() -> dict:
 @app.post("/transcribe")
 async def transcribe(
     file: UploadFile = File(...),
-    language: str = "turkish",
+    language: str = Form("turkish"),
     x_studio_key: str | None = Header(default=None),
 ):
     if len(ACCESS_KEY) < 16:
