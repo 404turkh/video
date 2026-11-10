@@ -79,7 +79,9 @@
       active=null;
     }
     for(let i=0;i<lines.length;i++){
-      const line=lines[i].trim();
+      const original=lines[i].trim();
+      const line=original.replace(/^\|\s*/,'').replace(/\s*\|$/,'').trim();
+      if(!line || /^[|:\-\s]+$/.test(line))continue;
       const match=line.match(cueHeader);
       if(match){
         finish();
