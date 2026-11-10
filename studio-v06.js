@@ -37,14 +37,14 @@
   if(ipad)model.value='fast';
   const safety=$('aiSafetyNote');
   if(safety)safety.textContent=ipad
-    ?'iPad güvenli mod: Whisper Tiny, en fazla 30 saniye / 60 MB. Whisper Base bu cihazda bellek çökmesini önlemek için kapalıdır. Tiny de düşük bellekli cihazlarda kapanabilir.'
+    ?'iPad güvenli mod: Whisper Tiny, en fazla 40 saniye / 60 MB. Whisper Base bu cihazda bellek çökmesini önlemek için kapalıdır. Tiny de düşük bellekli cihazlarda kapanabilir.'
     :'Masaüstünde daha doğru Whisper Base seçilebilir. Bu işlem yüksek bellek kullanır. Düzenlemelerini önce yedekle.';
   let pending=null;
   try{pending=JSON.parse(localStorage.getItem(AI_JOB_KEY)||'null')}catch(_){}
   if(pending){
    finishAI();
    if(Date.now()-Number(pending.time||0)<24*3600*1000){
-    say('⚠ Önceki AI işlemi '+String(pending.stage||'')+' aşamasında tamamlanmamış. Safari bellek nedeniyle yeniden yüklemiş olabilir. Proje taslağını kontrol et; iPad için Tiny / 30 sn sınırı etkin.');
+    say('⚠ Önceki AI işlemi '+String(pending.stage||'')+' aşamasında tamamlanmamış. Safari bellek nedeniyle yeniden yüklemiş olabilir. Proje taslağını kontrol et; iPad için Tiny / 40 sn sınırı etkin.');
    }
   }
  }
