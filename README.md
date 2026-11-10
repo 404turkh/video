@@ -55,7 +55,7 @@ Diğer eski dosyalar Git geçmişinde korunmaktadır. Statik GitHub Pages veya V
 **Bu sürümdeki değişiklikler:**
 
 - iPad/iPhone cihazlarda **Whisper Base seçeneği devre dışı**: yalnızca çok dilli Whisper Tiny / q8 WASM denenir. Masaüstünde Base seçilebilir.
-- iPad güvenli modunda **30 saniye** ve **60 MB** sınırı vardır. Daha büyük videolar AI işlemi başlamadan reddedilir, kaydedilmiş proje etkilenmez.
+- iPad güvenli modunda **40 saniye** ve **60 MB** sınırı vardır. Daha büyük videolar AI işlemi başlamadan reddedilir, kaydedilmiş proje etkilenmez.
 - AI modeli kullanıldıktan sonra iPad'de modelin temizlenmesi denenir, bir sonraki işlemde biriken bellek azaltılır.
 - AI başlatılmadan önce taslak, senkron yerel kayıt adımıyla korunmaya çalışılır; ayrıca IndexedDB kaydı devam eder.
 - Model yükleme aşaması kaydedilir; sayfa beklenmedik biçimde yeniden açılırsa önceki işlemin tamamlanmadığı bildirilir.
