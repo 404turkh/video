@@ -272,45 +272,128 @@
   $('seek').value=Number.isFinite(t)?t:0;
   $('playPause').textContent=vid.paused?'▶':'Ⅱ';
  }
+
+ function cueMessage(message){
+  const target=$('timingStatus');
+  if(target){target.textContent=message;target.scrollIntoView?.({block:'nearest'})}
+ }
+ function setCueTime(cueId,which,value){
+  const i=state.cues.findIndex(c=>c.id===cueId);
+  if(i<0)return false;
+  const c=state.cues[i];
+  const newStart=which==='start'?value:c.start, newEnd=which==='end'?value:c.end;
+  const error=Precise.validateTimes(state.cues,i,newStart,newEnd,vid.duration);
+  if(error){cueMessage('⚠ '+error);return false}
+  c[which]=Precise.roundMs(value);c.edited=true;editCues=true;
+  updateCues();queueSave();
+  cueMessage('✓ Zaman güncellendi: '+Precise.formatClock(c.start)+' – '+Precise.formatClock(c.end));
+  return true;
+ }
+ function insertCue(mode='append'){
+  const result=Precise.insertion(state.cues,mode,vid.currentTime||0,vid.duration);
+  if(result.error){cueMessage('⚠ '+result.error);return false}
+  const cue={id:id(),text:'Yeni altyazı',start:result.start,end:result.end,edited:true};
+  state.cues.push(cue);state.cues.sort((a,b)=>a.start-b.start);
+  editCues=true;updateCues();queueSave();
+  cueMessage('✓ Yeni satır eklendi: '+Precise.formatClock(cue.start)+' – '+Precise.formatClock(cue.end));
+  if(mediaBlob){vid.pause();vid.currentTime=cue.start;updatePreview(true)}
+  const card=[...$('cueList').children].find(x=>x.dataset?.cueId===cue.id);
+  if(card){
+   card.scrollIntoView?.({block:'nearest',behavior:'auto'});
+   card.querySelector('textarea')?.focus?.();
+  }
+  return true;
+ }
+ function insertCueAfter(cueId){
+  const i=state.cues.findIndex(c=>c.id===cueId);
+  if(i<0)return;
+  const current=state.cues[i],next=state.cues[i+1];
+  const start=Precise.roundMs(current.end);
+  const max=Number.isFinite(vid.duration)&&vid.duration>0?vid.duration:Infinity;
+  const end=Precise.roundMs(Math.min(start+1.5,next?next.start:Infinity,max));
+  if(end-start<.05){
+   cueMessage('⚠ Bu satırın sonrasında boş zaman yok. Altyazıların zamanını değiştirmek için satırı Böl veya başlangıç/bitiş kutularını kullan.');
+   return;
+  }
+  const fresh={id:id(),text:'Yeni altyazı',start,end,edited:true};
+  state.cues.splice(i+1,0,fresh);editCues=true;
+  updateCues();queueSave();
+  cueMessage('✓ '+Precise.formatClock(start)+' – '+Precise.formatClock(end)+' aralığına yeni satır eklendi.');
+  if(mediaBlob){vid.pause();vid.currentTime=start;updatePreview(true)}
+ }
  function updateCues(){
   $('cueCount').textContent=state.cues.length+' SATIR';
   const list=$('cueList');list.replaceChildren();
-  if(!state.cues.length){list.appendChild(node('div','empty-list','Henüz altyazı yok.'));updatePreview(true);return}
+  if(!state.cues.length){
+   list.appendChild(node('div','empty-list','Henüz altyazı yok. En sona ekle veya saatli metin listesini yapıştır.'));
+   updatePreview(true);return
+  }
   for(let i=0;i<state.cues.length;i++){
    const c=state.cues[i],row=node('article','cue-card');
-   const top=node('div','cue-head'),left=node('span','',('SATIR '+String(i+1).padStart(2,'0'))+(c.estimated?' · TAHMİNİ ZAMAN':''));
-   top.append(left,button('× Sil',()=>{state.cues.splice(i,1);editCues=true;updateCues();queueSave()},'ghost'));
-   row.appendChild(top);
-   const input=node('textarea');input.value=c.text;input.rows=2;input.setAttribute('aria-label','Altyazı '+(i+1));
-   input.addEventListener('input',()=>{c.text=input.value;c.edited=true;editCues=true;updatePreview(true);queueSave()});
+   row.dataset.cueId=c.id;
+   const top=node('div','cue-head');
+   const head=node('span','',('SATIR '+String(i+1).padStart(2,'0'))+
+    ' · '+Precise.formatClock(c.start)+' – '+Precise.formatClock(c.end)+(c.estimated?' · TAHMİNİ':''));
+   const remove=button('× Sil',()=>{
+    state.cues.splice(i,1);editCues=true;updateCues();queueSave()
+   },'ghost');
+   top.append(head,remove);row.appendChild(top);
+   const input=node('textarea');input.value=c.text;input.rows=2;
+   input.setAttribute('aria-label','Altyazı metni '+(i+1));
+   input.addEventListener('input',()=>{
+    c.text=input.value;c.edited=true;editCues=true;updatePreview(true);queueSave()
+   });
    row.appendChild(input);
    const times=node('div','cue-times');
    for(const key of ['start','end']){
-    const label=node('label','',key==='start'?'BAŞLANGIÇ (sn)':'BİTİŞ (sn)');
-    const number=node('input');number.type='number';number.min='0';number.step='.01';number.value=c[key].toFixed(2);
-    number.addEventListener('change',()=>{
-     const n=Number(number.value),prev=state.cues[i-1],next=state.cues[i+1];
-     const lo=key==='start'?(prev?prev.end+.02:0):c.start+.08;
-     const hi=key==='start'?c.end-.08:(next?next.start-.02:Infinity);
-     if(!Number.isFinite(n)||n<lo-.001||n>hi+.001){number.value=c[key].toFixed(2);say('Geçersiz zaman: altyazılar çakışmamalı.','timingStatus');return}
-     c[key]=round(n);c.edited=true;editCues=true;updateCues();queueSave();
+    const field=node('div','cue-time-field');
+    const label=node('label','cue-time-label',key==='start'?'BAŞLANGIÇ':'BİTİŞ');
+    const timeInput=node('input','cue-clock-input');
+    timeInput.id='cue-'+key+'-'+c.id;
+    timeInput.type='text';timeInput.inputMode='decimal';
+    timeInput.autocomplete='off';timeInput.spellcheck=false;
+    timeInput.value=Precise.formatClock(c[key]);
+    timeInput.setAttribute('aria-label','Satır '+(i+1)+' '+(key==='start'?'başlangıç':'bitiş')+' zamanı');
+    timeInput.setAttribute('placeholder','00:00.000');
+    label.htmlFor=timeInput.id;
+    const commit=()=>{
+      const parsed=Precise.parseClock(timeInput.value);
+      if(parsed===null){cueMessage('⚠ Saat biçimi hatalı. Örnek: 00:02.518');timeInput.value=Precise.formatClock(c[key]);return}
+      if(!setCueTime(c.id,key,parsed))timeInput.value=Precise.formatClock(c[key]);
+    };
+    timeInput.addEventListener('change',commit);
+    timeInput.addEventListener('keydown',event=>{
+      if(event.key==='Enter'){event.preventDefault();timeInput.blur()}
     });
-    label.appendChild(number);times.appendChild(label);
+    const grab=button('◉ Videodan al',()=>{
+      if(!mediaBlob){cueMessage('⚠ Önce video yükle.');return}
+      setCueTime(c.id,key,Precise.roundMs(vid.currentTime||0))
+    },'outline');
+    grab.title='Video oynatıcısındaki tam zamanı '+(key==='start'?'başlangıca':'bitişe')+' yaz';
+    const minus=button('−10 ms',()=>setCueTime(c.id,key,Precise.roundMs(c[key]-.01)),'outline');
+    const plus=button('+10 ms',()=>setCueTime(c.id,key,Precise.roundMs(c[key]+.01)),'outline');
+    field.append(label,timeInput);
+    const fine=node('div','cue-time-controls');fine.append(grab,minus,plus);
+    field.appendChild(fine);times.appendChild(field);
    }
    row.appendChild(times);
    const actions=node('div','cue-tools');
    const ctl=[
-    ['◀ 0,1 sn','back'],['0,1 sn ▶','forward'],['✂ Böl','split'],
-    ['⇄ Birleştir','merge'],['Baş −0,1','startEarlier'],['Bitiş +0,1','endLater']
+    ['◀ 0,1 sn','back'],['0,1 sn ▶','forward'],['− 0,01 sn','backFine'],
+    ['+ 0,01 sn','forwardFine'],['✂ Böl','split'],['⇄ Birleştir','merge'],
+    ['+ Sonrasına','insertAfter']
    ];
    for(const [label,action] of ctl){
-    const el=button(label,()=>{adjustCue(c.id,action)},'');
-    if(action==='merge'&&i===state.cues.length-1)el.disabled=true;
-    actions.appendChild(el);
+    const control=button(label,()=>{
+      if(action==='insertAfter')insertCueAfter(c.id);
+      else adjustCue(c.id,action)
+    },'');
+    if(action==='merge'&&i===state.cues.length-1)control.disabled=true;
+    actions.appendChild(control);
    }
    row.appendChild(actions);
-   row.addEventListener('click',e=>{
-    if(e.target.closest('input,textarea,button'))return;
+   row.addEventListener('click',event=>{
+    if(event.target.closest('input,textarea,button'))return;
     if(mediaBlob){vid.currentTime=c.start;updatePreview(true)}
    });
    list.appendChild(row);
@@ -320,21 +403,23 @@
  function adjustCue(itemId,action){
   const i=state.cues.findIndex(c=>c.id===itemId);if(i<0)return;
   const c=state.cues[i],prev=state.cues[i-1],next=state.cues[i+1];
-  const lo=prev?prev.end+.025:0,hi=next?next.start-.025:(Number.isFinite(vid.duration)?Math.max(vid.duration,c.end):c.end+10);
+  const lower=prev?prev.end:0,upper=next?next.start:(Number.isFinite(vid.duration)&&vid.duration>0?vid.duration:Infinity);
   if(action==='split'){
    const pieces=Timing.splitCue(c);
-   if(!pieces){say('Satır bölünemedi: en az iki kelime gerekli.','timingStatus');return}
+   if(!pieces){cueMessage('⚠ Satır bölünemedi. En az iki kelime gerekli.');return}
    state.cues.splice(i,1,...pieces);
   }else if(action==='merge'){
    if(!next)return;
    state.cues.splice(i,2,Timing.mergeCues(c,next));
-  }else if(action==='back'||action==='forward'){
-   const shift=action==='back'?-0.1:0.1,delta=Math.max(lo-c.start,Math.min(shift,hi-c.end));
-   if(Math.abs(delta)<.005)return;
-   c.start=round(c.start+delta);c.end=round(c.end+delta);c.edited=true;
-  }else if(action==='startEarlier'){c.start=round(Math.max(lo,c.start-.1));c.edited=true}
-  else if(action==='endLater'){c.end=round(Math.min(hi,c.end+.1));c.edited=true}
-  editCues=true;state.cues.sort((x,y)=>x.start-y.start);
+  }else if(['back','forward','backFine','forwardFine'].includes(action)){
+   const wanted=action==='back'?-.1:action==='forward'?.1:action==='backFine'?-.01:.01;
+   const actual=Math.max(lower-c.start,Math.min(wanted,upper-c.end));
+   if(Math.abs(actual)<.0005){cueMessage('⚠ Bu yönde boş zaman kalmadı.');return}
+   c.start=Precise.roundMs(c.start+actual);
+   c.end=Precise.roundMs(c.end+actual);
+   c.edited=true;
+  }else return;
+  editCues=true;state.cues.sort((a,b)=>a.start-b.start);
   updateCues();queueSave();
  }
  function reflow(){
