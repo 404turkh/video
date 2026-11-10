@@ -166,3 +166,44 @@ button.full{width:100%}
  .preset-list{grid-template-columns:repeat(2,1fr)}
  .preview-frame{max-height:270px;width:min(100%,220px)}
 }
+
+
+/* SubStudio 0.8 — iPad-friendly millisecond timeline editing */
+.cue-insert-bar{display:flex;align-items:flex-end;gap:10px;margin:8px 0}
+.cue-insert-bar .field{flex:1;min-width:0;margin:0}
+.cue-insert-bar #addCue{flex:0 0 auto;white-space:nowrap}
+.cue-clock-input{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:.2px!important;font-size:15px!important;font-weight:750!important;min-width:0;width:100%;padding:11px 9px!important;touch-action:manipulation}
+.cue-times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cue-time-field{min-width:0}
+.cue-time-label{display:block;font-size:10px;letter-spacing:.6px;font-weight:750;color:#e6c4af;margin:0 0 6px}
+.cue-time-controls{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.cue-time-controls button{border:1px solid #554953;border-radius:7px;padding:7px 3px;font-size:10px;color:#e8d9d1;background:#302b34;min-height:36px}
+.cue-time-controls button:first-child{grid-column:1/-1;color:#ffe4d2;background:#46302c;border-color:#a0644a}
+.cue-head{align-items:center;flex-wrap:wrap;gap:9px}
+.cue-head span{font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.6}
+.cue-tools{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cue-tools button{min-height:39px;white-space:normal;line-height:1.25;touch-action:manipulation}
+.timeline-paste-panel{margin:11px 0;padding:13px;border:1px solid #75523f;border-radius:11px;background:#28252c}
+.timeline-paste-panel textarea{min-height:175px;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap}
+.timeline-paste-panel .two-buttons{margin-bottom:10px}
+.fine-seek{margin:10px 0 2px;background:#232128;padding:11px;border:1px solid #4b3e45;border-radius:11px}
+.fine-seek label{display:block;font-size:11px;font-weight:750;color:#d8bcaf;margin-bottom:7px}
+.fine-seek-controls{display:grid;grid-template-columns:auto minmax(95px,1fr) auto auto;gap:6px;align-items:center}
+.fine-seek-controls button{min-width:0;padding:8px 9px;min-height:38px;font-size:11px}
+.fine-seek-controls input{min-width:0;text-align:center;font-variant-numeric:tabular-nums;font-size:14px;padding:9px 5px;font-weight:750}
+.transport .time{font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:1100px){
+ .cue-insert-bar{flex-direction:column;align-items:stretch}
+ .cue-insert-bar #addCue{width:100%}
+}
+@media(max-width:450px){
+ .cue-times{grid-template-columns:1fr;gap:12px}
+ .cue-time-controls{grid-template-columns:1fr 1fr 1fr}
+ .cue-time-controls button:first-child{grid-column:auto}
+ .fine-seek-controls{grid-template-columns:1fr minmax(100px,1.5fr) 1fr}
+ .fine-seek-controls #seekGoTime{grid-column:2}
+ .fine-seek-controls #seekForwardFine{grid-column:3;grid-row:1}
+ .transport{gap:5px}
+ .transport button{min-width:28px}
+ .transport .time{font-size:9px}
+}
