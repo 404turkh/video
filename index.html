@@ -1,10 +1,10 @@
 <!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0d0e12"><title>焱 SubStudio — Video ve Altyazı Stüdyosu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Anton&family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./studio-v06.css?v=0.6">
+<link rel="stylesheet" href="./studio-v06.css?v=0.7">
 <script src="./local-transcriber.js?v=0.6.2" defer></script><script src="./subtitle-timing.js?v=0.5" defer></script>
-<script src="./studio-v06-storage.js?v=0.6" defer></script><script src="./studio-v06-export.js?v=0.6" defer></script><script src="./studio-v06.js?v=0.6.2" defer></script>
-</head><body><header class="app-header"><a class="brand" href="#project"><span class="mark">焱</span><span>Sub<b>Studio</b></span><span class="version">BETA 0.6.2</span></a>
+<script src="./studio-v06-storage.js?v=0.6" defer></script><script src="./studio-v06-export.js?v=0.6" defer></script><script src="./studio-v06.js?v=0.7" defer></script>
+</head><body><header class="app-header"><a class="brand" href="#project"><span class="mark">焱</span><span>Sub<b>Studio</b></span><span class="version">BETA 0.7</span></a>
 <div class="header-actions"><span id="saveStatus" class="save-status" role="status" aria-live="polite">Taslak açılıyor…</span>
 <button type="button" id="saveProject" class="outline">◉ Kaydet</button><button type="button" id="backupProject" class="primary">↓ Yedek indir</button></div></header>
 <div class="app-body"><nav class="side-nav" aria-label="Çalışma bölümleri">
@@ -17,7 +17,22 @@
 <label class="field" style="margin-top:14px"><span>Video görüntü oranı</span><select id="aspectSelect"><option value="original">Orijinal</option><option value="9:16">9:16 · Reels / TikTok</option><option value="1:1">1:1 · Kare</option><option value="16:9">16:9 · YouTube</option></select></label></div><div class="panel"><div class="panel-heading"><h2>Proje bilgileri</h2><span class="micro">OTOMATİK KAYIT</span></div><label class="field"><span>Proje adı</span><input id="projectName" type="text" maxlength="80" value="Yeni video projesi"></label><div class="two-buttons"><button type="button" class="outline" id="importBackup">↑ Yedekten aç</button><button type="button" class="danger" id="deleteProject">↺ Yeni proje</button></div>
 <input id="backupInput" type="file" accept=".json,.substudio.json,application/json" hidden>
 <p class="help" style="margin-top:14px">Proje yedeği altyazıları, yazı ayarlarını ve ekstra metinleri içerir, videonun kendisini içermez. Video ayrıca tarayıcıda saklanmaya çalışılır.</p>
-<div class="warning">iPad depolama sınırı veya Safari verilerinin silinmesi taslağı etkileyebilir. Önemli düzenlemelerinde sağ üstten <b>Yedek indir</b> düğmesini kullan.</div></div></section><section class="page" data-page="captions" aria-label="captions"><div class="page-heading"><div class="small-label">02 / ALTYAZI EDİTÖRÜ</div><h1>Sesle <em>uyumlu yazı.</em></h1><p>AI altyazıyı oluştur, satırları akıllıca böl ve her cümlenin süresini düzelt.</p></div><div class="panel"><div class="panel-heading"><h2>Otomatik altyazı</h2><span class="micro">CİHAZDA · BETA</span></div><div class="form-grid">
+<div class="warning">iPad depolama sınırı veya Safari verilerinin silinmesi taslağı etkileyebilir. Önemli düzenlemelerinde sağ üstten <b>Yedek indir</b> düğmesini kullan.</div></div></section><section class="page" data-page="captions" aria-label="captions"><div class="page-heading"><div class="small-label">02 / ALTYAZI EDİTÖRÜ</div><h1>Sesle <em>uyumlu yazı.</em></h1><p>AI altyazıyı oluştur, satırları akıllıca böl ve her cümlenin süresini düzelt.</p></div><div class="panel"><div class="panel-heading"><h2>Otomatik altyazı</h2><span class="micro">CİHAZ / SUNUCU</span></div>
+<label class="field"><span>Altyazı oluşturma yöntemi</span>
+<select id="aiMode">
+<option value="local">iPad'de · Kısa video (deneysel)</option>
+<option value="server">Sunucuda · Uzun video (1–10 dakika)</option>
+</select></label>
+<div id="remoteSetup" hidden>
+<div class="warning" style="margin:8px 0 15px">1–2 dakikalık videolarda AI iPad'de çalışmaz; altyazı sunucuda oluşturulur. Bunun için önce kendi transkripsiyon sunucunu yayına alıp adresini bağlaman gerekir. GitHub Pages tek başına AI sunucusu çalıştıramaz.</div>
+<label class="field"><span>Transkripsiyon sunucu adresi (HTTPS)</span>
+<input type="url" id="transcriptionServerUrl" placeholder="https://substudio-whisper.example.com" autocomplete="url"></label>
+<label class="field"><span>Sunucu erişim kodu (OpenAI API anahtarı değil)</span>
+<input type="password" id="transcriptionServerKey" autocomplete="off" placeholder="Sunucunun güvenli erişim kodu"></label>
+<button type="button" class="outline" id="testTranscriptionServer">⌁ Sunucu bağlantısını kontrol et</button>
+<p class="help" id="serverConnectionStatus">Sunucu adresi bu cihazda kaydedilir, erişim kodu yalnızca açık sekmenin oturumunda tutulur. Sunucu kurulu değilse bu yöntem henüz çalışmaz.</p>
+</div>
+<div class="form-grid">
 <label class="field"><span>Konuşma dili</span><select id="aiLanguage"><option value="turkish">Türkçe</option><option value="arabic">Arapça</option><option value="english">İngilizce</option><option value="auto">Otomatik algıla</option></select></label>
 <label class="field"><span>AI modeli</span><select id="aiModel">
 <option value="fast" selected>Whisper Tiny · iPad güvenli mod</option>
@@ -25,7 +40,7 @@
 </select></label></div>
 <div id="aiSafetyNote" class="warning" style="margin:7px 0 14px">iPad Safari için ağır Whisper Base kapalıdır. Güvenli mod, en fazla 40 saniyelik video ve 60 MB dosyayla deneme yapar. Çok düşük bellekte Tiny bile Safari'yi kapatabilir; %100 garanti değildir.</div>
 <button type="button" id="autoCaption" class="primary full">✦ Otomatik altyazı oluştur</button>
-<div id="autoStatus" class="notice-status" role="status" aria-live="polite">API gerekmez. iPad için 40 saniyeye kadar kısa videolarla dene. Daha uzun videolar masaüstü bilgisayar gerektirebilir.</div></div><div class="panel"><div class="panel-heading"><h2>Akıllı cümle bölme</h2><span class="micro"><span id="cueCount">0 SATIR</span></span></div><label class="field"><span>Altyazı uzunluğu</span><select id="captionDensity"><option value="short">Kısa · Tek satır</option><option value="balanced">Dengeli · 1–2 satır</option><option value="long">Uzun · 2 satır</option></select></label><div class="two-buttons"><button type="button" class="outline" id="reflowCues">✦ Akıllı böl ve zamanla</button><button type="button" class="outline" id="undoReflow" disabled>↶ Geri al</button></div>
+<div id="autoStatus" class="notice-status" role="status" aria-live="polite">Yerel AI: iPad için 40 saniye sınırı. Sunucu modu: sunucu kurulduğunda 1–10 dakikalık videolar için kullanılabilir. Video yüklenmeden önce proje taslağı kaydedilir.</div></div><div class="panel"><div class="panel-heading"><h2>Akıllı cümle bölme</h2><span class="micro"><span id="cueCount">0 SATIR</span></span></div><label class="field"><span>Altyazı uzunluğu</span><select id="captionDensity"><option value="short">Kısa · Tek satır</option><option value="balanced">Dengeli · 1–2 satır</option><option value="long">Uzun · 2 satır</option></select></label><div class="two-buttons"><button type="button" class="outline" id="reflowCues">✦ Akıllı böl ve zamanla</button><button type="button" class="outline" id="undoReflow" disabled>↶ Geri al</button></div>
 <p id="timingStatus" class="help" style="margin-top:14px">Kelime zamanlarıyla bölünür, ancak AI hataları elle düzeltilmelidir.</p></div><div class="panel"><div class="panel-heading"><h2>Altyazı satırları</h2><button type="button" id="addCue" class="outline">+ Satır ekle</button></div><div class="two-buttons"><button class="outline" type="button" id="importSRT">↑ SRT içe aktar</button><button class="outline" type="button" id="exportSRTCaptions">↓ SRT indir</button></div>
 <input id="srtFile" type="file" accept=".srt,text/plain" hidden>
 <div id="cueList" class="cue-list"><div class="empty-list">Henüz altyazı yok.</div></div></div></section><section class="page" data-page="style" aria-label="style"><div class="page-heading"><div class="small-label">03 / YAZI TASARIMI</div><h1>Kendi <em>stilini seç.</em></h1><p>Bu bölüm sadece altyazıları değiştirir. Ekstra metinler bağımsız katman olarak düzenlenir.</p></div><div class="panel"><div class="panel-heading"><h2>Hazır altyazı tasarımları</h2><span class="micro">6 HAZIR STİL</span></div><div class="preset-list">
