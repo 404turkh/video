@@ -47,3 +47,20 @@ v0.6 export motoru, önceki modal yerine ayrı sayfa kullanır. Kayıt başlarke
 - local-transcriber.js — cihazda Whisper Base / Tiny transkripsiyonu
 
 Diğer eski dosyalar Git geçmişinde korunmaktadır. Statik GitHub Pages veya Vercel üzerinde derleme olmadan çalışır.
+
+## v0.6.1 — iPad Safari'nin AI aşamasında kapanmasını azaltma
+
+**Sorun:** iPad Safari'de yerel Whisper Base yüklenirken (2/3) bellek taşması, sayfanın kendiliğinden yeniden açılması veya uygulamanın kapanması olabilir. Aynı hata Transformers.js'in Whisper Base ile iPad Safari üzerindeki GitHub hata kayıtlarında da rapor edilmiştir (huggingface/transformers.js #1241). WebKit süreçleri sistemin bellek baskısı nedeniyle sonlandırılabilir.
+
+**Bu sürümdeki değişiklikler:**
+
+- iPad/iPhone cihazlarda **Whisper Base seçeneği devre dışı**: yalnızca çok dilli Whisper Tiny / q8 WASM denenir. Masaüstünde Base seçilebilir.
+- iPad güvenli modunda **30 saniye** ve **60 MB** sınırı vardır. Daha büyük videolar AI işlemi başlamadan reddedilir, kaydedilmiş proje etkilenmez.
+- AI modeli kullanıldıktan sonra iPad'de modelin temizlenmesi denenir, bir sonraki işlemde biriken bellek azaltılır.
+- AI başlatılmadan önce taslak, senkron yerel kayıt adımıyla korunmaya çalışılır; ayrıca IndexedDB kaydı devam eder.
+- Model yükleme aşaması kaydedilir; sayfa beklenmedik biçimde yeniden açılırsa önceki işlemin tamamlanmadığı bildirilir.
+- Stil, altyazı, bağımsız metin ve dışa aktarma sistemleri korunmuştur.
+
+**Sınırlar:** Bu bir güvenlik/kararlılık iyileştirmesidir, iPad üzerinde kesin AI transkripsiyonu veya çökmesiz çalışma garantisi değildir. Whisper Tiny'ın doğruluğu Base'den düşük olabilir. Daha yüksek doğruluk ve uzun videolar için cihazdan bağımsız bir sunucu transkripsiyon seçeneği gerekecektir. Sunucu kullanımı kullanıcı dosyasının aktarılmasını ve barındırma maliyetini gerektirir; şu anda eklenmemiştir.
+
+Kaynaklar: https://github.com/huggingface/transformers.js/issues/1241 ve https://bugs.webkit.org/show_bug.cgi?id=277848 .
