@@ -7,7 +7,7 @@
   const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
   const MAX_SECONDS = 90;
   const MAX_FILE_BYTES = 120 * 1024 * 1024;
-  const IPAD_MAX_SECONDS = 30;
+  const IPAD_MAX_SECONDS = 40;
   const IPAD_MAX_FILE_BYTES = 60 * 1024 * 1024;
   function isAppleTouch() {
     if (typeof navigator === 'undefined') return false;
