@@ -1,10 +1,11 @@
 <!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0d0e12"><title>焱 SubStudio — Video ve Altyazı Stüdyosu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Anton&family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./studio-v06.css?v=0.7.1">
+<link rel="stylesheet" href="./studio-v06.css?v=0.8">
 <script src="./local-transcriber.js?v=0.6.2" defer></script><script src="./subtitle-timing.js?v=0.5" defer></script>
-<script src="./studio-v06-storage.js?v=0.6" defer></script><script src="./studio-v06-export.js?v=0.6" defer></script><script src="./studio-v06.js?v=0.7.1" defer></script>
-</head><body><header class="app-header"><a class="brand" href="#project"><span class="mark">焱</span><span>Sub<b>Studio</b></span><span class="version">BETA 0.7.1</span></a>
+<script src="./studio-v08-timing.js?v=0.8" defer></script>
+<script src="./studio-v06-storage.js?v=0.6" defer></script><script src="./studio-v06-export.js?v=0.6" defer></script><script src="./studio-v06.js?v=0.8" defer></script>
+</head><body><header class="app-header"><a class="brand" href="#project"><span class="mark">焱</span><span>Sub<b>Studio</b></span><span class="version">BETA 0.8</span></a>
 <div class="header-actions"><span id="saveStatus" class="save-status" role="status" aria-live="polite">Taslak açılıyor…</span>
 <button type="button" id="saveProject" class="outline">◉ Kaydet</button><button type="button" id="backupProject" class="primary">↓ Yedek indir</button></div></header>
 <div class="app-body"><nav class="side-nav" aria-label="Çalışma bölümleri">
@@ -42,9 +43,30 @@
 <button type="button" id="autoCaption" class="primary full">✦ Otomatik altyazı oluştur</button>
 <button type="button" id="resumeServerJob" class="outline full" hidden style="margin-top:9px">↶ Sunucudaki altyazı işlemini sürdür</button>
 <div id="autoStatus" class="notice-status" role="status" aria-live="polite">Yerel AI: iPad için 40 saniye sınırı. Sunucu modu: sunucu kurulduğunda 1–10 dakikalık videolar için kullanılabilir. Video yüklenmeden önce proje taslağı kaydedilir.</div></div><div class="panel"><div class="panel-heading"><h2>Akıllı cümle bölme</h2><span class="micro"><span id="cueCount">0 SATIR</span></span></div><label class="field"><span>Altyazı uzunluğu</span><select id="captionDensity"><option value="short">Kısa · Tek satır</option><option value="balanced">Dengeli · 1–2 satır</option><option value="long">Uzun · 2 satır</option></select></label><div class="two-buttons"><button type="button" class="outline" id="reflowCues">✦ Akıllı böl ve zamanla</button><button type="button" class="outline" id="undoReflow" disabled>↶ Geri al</button></div>
-<p id="timingStatus" class="help" style="margin-top:14px">Kelime zamanlarıyla bölünür, ancak AI hataları elle düzeltilmelidir.</p></div><div class="panel"><div class="panel-heading"><h2>Altyazı satırları</h2><button type="button" id="addCue" class="outline">+ Satır ekle</button></div><div class="two-buttons"><button class="outline" type="button" id="importSRT">↑ SRT içe aktar</button><button class="outline" type="button" id="exportSRTCaptions">↓ SRT indir</button></div>
+<p id="timingStatus" class="help" style="margin-top:14px">Kelime zamanlarıyla bölünür, ancak AI hataları elle düzeltilmelidir.</p></div><div class="panel">
+<div class="panel-heading"><h2>Altyazı satırları</h2><span class="micro">0,001 SN HASSASİYET</span></div>
+<div class="cue-insert-bar">
+ <label class="field"><span>Yeni altyazı nereye eklensin?</span><select id="cueInsertMode">
+ <option value="append" selected>En sona ekle (önerilen)</option>
+ <option value="playhead">Videonun oynatma konumundaki boşluğa</option>
+ </select></label>
+ <button type="button" id="addCue" class="primary">+ Yeni altyazı ekle</button>
+</div>
+<p class="help" id="cueInsertHelp">Yeni satır son altyazıdan sonra eklenir; önceki yazıların içine girmez. Başlangıç ve bitişi 00:00.158 biçiminde düzenleyebilirsin.</p>
+<div class="two-buttons"><button class="outline" type="button" id="importSRT">↑ SRT içe aktar</button><button class="outline" type="button" id="exportSRTCaptions">↓ SRT indir</button></div>
 <input id="srtFile" type="file" accept=".srt,text/plain" hidden>
-<div id="cueList" class="cue-list"><div class="empty-list">Henüz altyazı yok.</div></div></div></section><section class="page" data-page="style" aria-label="style"><div class="page-heading"><div class="small-label">03 / YAZI TASARIMI</div><h1>Kendi <em>stilini seç.</em></h1><p>Bu bölüm sadece altyazıları değiştirir. Ekstra metinler bağımsız katman olarak düzenlenir.</p></div><div class="panel"><div class="panel-heading"><h2>Hazır altyazı tasarımları</h2><span class="micro">6 HAZIR STİL</span></div><div class="preset-list">
+<button type="button" class="outline full" id="toggleTimelinePaste" style="margin-top:9px">☷ Zamanlı metin listesini yapıştır</button>
+<div class="timeline-paste-panel" id="timelinePastePanel" hidden>
+ <p class="help">Örneğin aşağıdaki gibi zaman ve metni alt alta yapıştır. <b>Milisaniyeler kaybolmaz.</b> Tüm liste tek işlemde eklenir.</p>
+ <textarea id="timelinePasteText" rows="7" spellcheck="false" placeholder="00:00.158 – 00:02.518&#10;Bismillahirrahmânirrahîm.&#10;&#10;00:03.738 – 00:05.720&#10;Hamd, âlemlerin Rabbi,"></textarea>
+ <div class="two-buttons">
+  <button type="button" class="primary" id="applyTimelinePaste">✓ Listeyi altyazıya çevir</button>
+  <button type="button" class="outline" id="cancelTimelinePaste">Kapat</button>
+ </div>
+ <p id="timelinePasteStatus" class="help" role="status" aria-live="polite"></p>
+</div>
+<div id="cueList" class="cue-list"><div class="empty-list">Henüz altyazı yok.</div></div>
+</div></section><section class="page" data-page="style" aria-label="style"><div class="page-heading"><div class="small-label">03 / YAZI TASARIMI</div><h1>Kendi <em>stilini seç.</em></h1><p>Bu bölüm sadece altyazıları değiştirir. Ekstra metinler bağımsız katman olarak düzenlenir.</p></div><div class="panel"><div class="panel-heading"><h2>Hazır altyazı tasarımları</h2><span class="micro">6 HAZIR STİL</span></div><div class="preset-list">
 <button type="button" data-preset="ember">PARLA<span>Ember</span></button>
 <button type="button" data-preset="minimal">Sade<span>Minimal</span></button>
 <button type="button" data-preset="neon">NEON<span>Neon</span></button>
@@ -101,7 +123,16 @@
 <div id="previewEmpty" class="preview-empty"><div class="glyph">焱</div><b>Videon burada görünür</b><small>Video seç; metinleri önizlemede düzenle. Ekstra yazılar sürüklenebilir.</small></div>
 </div>
 <div class="transport"><button type="button" id="playPause" aria-label="Oynat/duraklat">▶</button>
-<span class="time" id="timeCur">00:00</span><input type="range" id="seek" min="0" max="1" value="0" step=".01">
-<span class="time" id="timeDur">00:00</span><button type="button" id="mute" aria-label="Ses aç/kapat">♫</button></div>
+<span class="time" id="timeCur">00:00.000</span><input type="range" id="seek" min="0" max="1" value="0" step=".001">
+<span class="time" id="timeDur">00:00.000</span><button type="button" id="mute" aria-label="Ses aç/kapat">♫</button></div>
+<div class="fine-seek">
+<label for="playheadClock">Hassas video zamanı</label>
+<div class="fine-seek-controls">
+ <button type="button" id="seekBackFine" class="outline" aria-label="10 milisaniye geri">−10 ms</button>
+ <input id="playheadClock" type="text" value="00:00.000" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Video zamanına git">
+ <button type="button" id="seekGoTime" class="primary">Git</button>
+ <button type="button" id="seekForwardFine" class="outline" aria-label="10 milisaniye ileri">+10 ms</button>
+</div>
+</div>
 <p class="preview-help">Altyazı ve ekstra metinler birbirinden bağımsız olarak zamanlanır.</p></div>
-<div class="footer-tip">焱 SubStudio v0.6 · Yerel taslak · Ayrı editör sayfaları</div></aside></main></div></body></html>
+<div class="footer-tip">焱 SubStudio v0.8 · Milisaniye editörü · Yerel taslak · Ayrı editör sayfaları</div></aside></main></div></body></html>
